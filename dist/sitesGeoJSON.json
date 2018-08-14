@@ -5,24 +5,24 @@
    "type": "Feature",
    "geometry": {
       "type": "Point",
-      "coordinates":  [ -76.3705,42.8576 ]
+      "coordinates":  [ -76.42105,42.93493 ]
    },
    "properties": {
     "id":"1",
-    "Station Name":"SKANEATELES LAKE BUOUY",
-    "Site ID":"01433500"
+    "Station Name":"SKANEATELES LAKE BOUY",
+    "Site ID":"425606076251601"
    }
  },
  {
   "type": "Feature",
   "geometry": {
      "type": "Point",
-     "coordinates":  [ -76.3450,42.8326 ]
+     "coordinates":  [ -76.42875,42.9441 ]
   },
   "properties": {
     "id":"2",
-    "Station Name":"SKANEATELES LAKE PIER",
-    "Site ID":"04213500"
+    "Station Name":"SKANEATELES LAKE AT SKANEATELES",
+    "Site ID":"04236000"
   }
  }
 ]

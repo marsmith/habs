@@ -39,11 +39,7 @@ body {
 }
 
 .top-menu-brand {
-  padding: 18px 20px 15px;
-}
-
-.top-menu-brand{
-  padding-top: 18px;
+  padding: 12px 20px 15px;
 }
 
 .top-menu-brand > img {
@@ -120,9 +116,15 @@ src: local('Open Sans'), local('OpenSans'),
      url('../fonts/OpenSans-Regular.svg#OpenSans') format('svg'); /* Legacy iOS */
 }
 
+.openGraphingModule:hover {
+  cursor: pointer;
+}
+
 .leaflet-popup-content-wrapper {
   border-radius: 0px;
 }
+
+.leaflet-popup-content img { margin: 0 auto; display:block; }
 
 /*
   ===========================
@@ -167,11 +169,15 @@ color:white;
   ===========================
 */
 
+.table-sm{
+  font-size: 14px;
+}
+
 #explanationPanel .card-body {
   padding:0px;
 }
 
-#legend tr {
+#legend .siteData {
   cursor: pointer;
 }
 
@@ -208,10 +214,10 @@ select {
   margin-top: 0px !important;
 }
 
-#legend span {
+/* #legend span {
   padding-left:16px;
   font-size: 12px;
-}
+} */
 
 #layersPanel .card {
   background-color: #ECEEF3;
@@ -240,7 +246,7 @@ opacity: .5;
   position: fixed;
   bottom: 0;
   left: 0;
-  z-index: 999;
+  z-index: 1001;
   transition: left .5s ease;
 }
 
@@ -251,7 +257,7 @@ opacity: .5;
 	display: flex;
   flex-direction: column;
   justify-content: space-between;
-  height: 100%;
+  height: 99%;
 }
 
 #main-menu .main-menu-container {
@@ -389,6 +395,7 @@ border: 0;
   }
 
   #main-menu {
+    width: 100%;
     left: -100%;
     height: calc(100% - 69px);
   }
@@ -411,7 +418,7 @@ border: 0;
 
   .app-name-mobile {
     display: inline;
-    font-size:medium;
+    font-size:small;
   }
 
 }

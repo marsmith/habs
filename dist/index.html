@@ -1,9 +1,19 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-123752623-1"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+
+        gtag('config', 'UA-123752623-1');
+    </script>
+
     <meta name="author" content="Martyn Smith - USGS NY WSC">
 	<link rel="copyright" href="license.txt">
-    <title>HABS Data Viewer</title>
+    <title>Water Quality Data Viewer</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <script src="./bundle.js"></script>  
   </head>
@@ -14,12 +24,15 @@
             <span class="fa fa-bars" ></span>
         </div>
         <div class="title">
-            <a class='top-menu-brand hidden-xs' href="https://www.usgs.gov"><img src="images/logo.png"></a>
-            <span class="app-name">HABS Data Viewer</span><span class="app-name-mobile">HABS Data Viewer</span> 
+            <a class='top-menu-brand d-none d-md-block float-left' href="https://www.usgs.gov"><img src="images/logo.png"></a>
+            <a class='top-menu-brand d-none d-md-block float-left' href="https://www.dec.ny.gov"><img src="images/logodecboxweb.png"></a>
+            
+            <span class="app-name">Water Quality Data Viewer</span>
+            <span class="app-name-mobile">USGS Water Quality Data Viewer</span> 
         </div>
 
         <button id="aboutButton" class="btn btn-default top-menu-btn pull-right">
-            <i class="fa fa-info"></i><span class="d-none d-sm-inline">&nbsp;&nbsp;About</span>
+            <i class="fa fa-info"></i><span class="d-none d-md-inline">&nbsp;&nbsp;About</span>
         </button>
     </div>
 
@@ -33,16 +46,26 @@
 
                             <div class="card-header" data-toggle="collapse" data-parent="#accordion" href="#explanationPanel">
                                 <a class="card-title" >
-                                    HABS Sites
+                                    Water Quality Monitoring Sites
                                 </a>
                             </div>
                             <div id="explanationPanel" class="card-body" data-parent="#accordion">
                                 <div class="card-body">
                                     <div class="alert alert-info" role="alert">
-                                        Click a site in the table below or on the map to retrieve USGS Data
+                                        Click a site name or constituent in the area below or a site on the map to launch the Water Quality Data Retrieval and Graphing Module
                                     </div>
 
-                                    <table id="legend" class="table table-hover">
+                                    <div class="row" id="loading">
+                                        <div class="col-6 mx-auto">
+                                            <div class="text-center">
+                                                <i class="fa fa-circle-o-notch fa-spin fa-3x fa-fw"></i>
+                                                <span class="mt-2">Loading NWIS Data...</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                       
+                                    <table id="legend" class="table table-hover mb-0" style="display:none;">
                                         <thead>
                                             <tr>
                                                 <th>Icon</th>
@@ -149,7 +172,7 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">HABS</h5>
+                    <h5 class="modal-title">Water Quality Data Retrieval and Graphing Module</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
@@ -212,16 +235,24 @@
                                     Compare past year's data
                                 </label>
                             </div>
-
-
             
                         </div>
-                        <div class="card-footer text-muted">
+                        <div class="card-footer text-center">
                             <button id="showGraph" type="button" class="btn btn-success">Show Graph</button>
                         </div>
     
                     </div> 
-                    <div id="graphContainer"></div>
+                    
+                    <div class="row" id="graph-loading" style="display:none;">
+                        <div class="col-6 mx-auto">
+                            <div class="text-center">
+                                <i class="fa fa-circle-o-notch fa-spin fa-3x fa-fw"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="graphContainer">
+                    </div>
 
                 </div>
                 <div class="modal-footer">
@@ -238,7 +269,7 @@
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
-                    <h5 class="modal-title">HABS Data Viewer</h5>
+                    <h5 class="modal-title">Water Quality Data Viewer</h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                             <span aria-hidden="true">&times;</span>
                         </button>
@@ -255,8 +286,20 @@
                         <div class="tab-content">
                             <div role="tabpanel" class="tab-pane active" id="aboutTabPane"><br>
 
+                                <p>This page and data were made possible by a USGS and NYS DEC partnership</p>
+                                <a class='top-menu-brand' href="https://www.usgs.gov"><img src="images/usgs-logo-black.png"></a>
+                                <a class='top-menu-brand' href="https://www.dec.ny.gov"><img src="images/logodecboxweb.png"></a>
 
-                                <p>Developed by <a href="https://www.usgs.gov/staff-profiles/martyn-smith">Martyn Smith</a> of the <a href="https://ny.water.usgs.gov">NY WSC</a>.<br><br>
+                                <br><br>
+
+                                <div class="alert alert-info" role="alert">
+                                    All data is provisional unless otherwise noted
+                                </div>
+
+                                <p>Cyanobacterial harmful algal blooms (CyanoHABs) are increasingly a global concern because CyanoHABs pose a threat to human and aquatic ecosystem health and cause economic damages. Despite advances in scientific understanding of cyanobacteria and associated compounds, many unanswered questions remain about occurrence, environmental triggers for toxicity, and the ability to predict the timing, duration, and toxicity of CyanoHABs. U.S. Geological Survey (USGS) scientists are leading a diverse range of studies to address CyanoHAB issues in water bodies throughout the United States, using a combination of traditional methods and emerging technologies, and in collaboration with numerous partners. By providing practical applications of cutting edge CyanoHAB research, USGS studies have advanced scientific understanding, enabling the development of approaches to help protect ecological and human health</p>
+
+                                <p>Developed by <a href="https://www.usgs.gov/staff-profiles/martyn-smith">Martyn Smith</a> of the <a href="https://ny.water.usgs.gov">USGS New York Water Science Center</a>
+                                <p>Icons from <a href="https://github.com/USGS-WiM/marker-creator">Marker Creator</a> developed by<a href="https://wim.usgs.gov"> USGS Web Informatics and Mapping</a><br><br>
                                 <!-- Source code available <a href="https://github.com/marsmith/go2mapper">here.</a></p> -->
                                 <span id="appVersion"></span>
                             </div>

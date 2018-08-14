@@ -28,14 +28,16 @@ import 'bootstrap/js/dist/tab';
 import 'select2';
 import moment from 'moment'
 import Highcharts from 'highcharts';
+import addExporting from "highcharts/modules/exporting";
+addExporting(Highcharts)
 import 'bootstrap-datepicker';
 import { map, control, tileLayer, featureGroup, geoJSON, Icon } from 'leaflet';
 import { basemapLayer, dynamicMapLayer } from 'esri-leaflet';
 
 //START user config variables
-var MapX = '-76.3705'; //set initial map longitude
-var MapY = '42.8576'; //set initial map latitude
-var MapZoom = 12; //set initial map zoom
+var MapX = '-76.42'; //set initial map longitude
+var MapY = '42.93'; //set initial map latitude
+var MapZoom = 13; //set initial map zoom
 var sitesURL = './sitesGeoJSON.json';
 var NWISivURL = 'https://nwis.waterservices.usgs.gov/nwis/iv/';
 //END user config variables 
@@ -47,31 +49,19 @@ var baseMapLayer, basemaplayerLabels;
 var weatherLayer = {};
 var habsSitesLayer;
 var seriesData;
-
-// var parameterList = [
-//   {pcode:'00010', desc:'Temperature, water'},
-//   {pcode:'00095', desc:'Specific cond at 25C'},
-//   {pcode:'00400', desc:'pH'},
-//   {pcode:'63680', desc:'Turbidity, Form Neph'},
-//   {pcode:'00060', desc:'Discharge'},
-//   {pcode:'00065', desc:'Gage height'}
-// ];
+var popup;
 
 var parameterList = [
-  {pcode:'00010', desc:'Temperature, water'},
-  {pcode:'00095', desc:'Specific cond at 25C'},
-  {pcode:'00300', desc:'Dissolved oxygen'},
-  {pcode:'00301', desc:'Dissolved oxygen, % Saturation'},
-  {pcode:'00400', desc:'pH'},
-  {pcode:'63680', desc:'Turbidity, Form Neph'},
-  {pcode:'32318', desc:'fChlorophyll, ug/L'},
-  {pcode:'32320', desc:'fChlorophyll, RFU'},
-  {pcode:'32319', desc:'fPhycocyanin, ug/L'},
-  {pcode:'32321', desc:'fPhycocyanin, RFU'},
-  {pcode:'32295', desc:'fDOM, PPB QSE'},
-  {pcode:'32322', desc:'fDOM, RFU'},
-  {pcode:'00060', desc:'Discharge'},
-  {pcode:'00065', desc:'Gage height'}
+  {idx:'1', pcode:'00010', desc:'Temperature, water'},
+  {idx:'2', pcode:'00095', desc:'Specific cond at 25C'},
+  {idx:'3', pcode:'00300', desc:'Dissolved oxygen'},
+  {idx:'4', pcode:'00400', desc:'pH'},
+  {idx:'5', pcode:'63680', desc:'Turbidity, Form Neph'},
+  {idx:'6', pcode:'32295', desc:'fDOM, water, in situ'},
+  {idx:'7', pcode:'32315', desc:'fChl, water, in situ'},
+  {idx:'8', pcode:'32319', desc:'fPC, water, in situ'},
+  {idx:'9', pcode:'00060', desc:'Discharge'},
+  {idx:'10', pcode:'00065', desc:'Gage height'}
 ];
 
 var noaaSitesJSON = './noaaSites.json';  //lookup file of all NOAA sites with USGS gages
@@ -95,7 +85,7 @@ $(document).ready(function () {
   Icon.Default.imagePath = './images/';
 
   //create map
-  theMap = map('mapDiv', { zoomControl: false });
+  theMap = map('mapDiv', { zoomControl: false, minZoom: 8, });
 
   //add zoom control with your options
   control.zoom({ position: 'topright' }).addTo(theMap);
@@ -167,34 +157,55 @@ $(document).ready(function () {
     downloadData();
   });
 
-  $('#legend').on("mouseenter", "tr", function(){
-    var siteName = $(this).find('.siteName').text();
-    console.log('test hover:',siteName);
+  $('#mapDiv').on("click", '.openGraphingModule', function(){
+    var id = String($(this).data('id'));
+    $('#stationSelect').select2('val', id);
+    openGraphingModule();
+  });  
+
+  $('#legend').on("mouseenter", ".siteData", function(){
+    
+    var siteName = $(this).data('sitename');
 
     habsSitesLayer.eachLayer(function(geoJSON){
-      geoJSON.eachLayer(function(layer) {
+      geoJSON.eachLayer(function(layer) { 
+        
+        //console.log(siteName,layer.feature.properties['Station Name'])
         if (siteName == layer.feature.properties['Station Name']) {
-          L.popup()
-          .setLatLng(layer._latlng)
-          .setContent(layer.feature.properties['Station Name'])
-          .openOn(theMap);
+          layer.openPopup();
         }
       });
     });
   });
 
-  $('#legend').on("click", "tr", function(){
+  $('#legend').on("click", ".siteData", function(){
+    //console.log('click')
     $('#stationSelect').val(null).trigger('change');
-    var siteName = $(this).find('.siteName').text();
-    var siteID =  $(this).find('.siteName').data('siteid');
-    var id = String($(this).find('.siteName').data('id'));
-    console.log('test CLICK:',this, id, siteID, siteName);
+    $('#parameterSelect').val(null).trigger('change');
+    $('#graphContainer').html('');
+
+    var pcode = String($(this).data('pcode'));
+    var siteName = $(this).data('sitename');
+    var id = String($(this).data('id'));
+
+    //console.log(siteName,pcode,id)
 
     habsSitesLayer.eachLayer(function(geoJSON){
       geoJSON.eachLayer(function(layer) {
         if (siteName == layer.feature.properties['Station Name']) {
           $('#stationSelect').select2('val', id);
-          $('#graphModal').modal('show');
+          //make pcode selection
+          if (pcode) {
+            $.each(parameterList, function (idx,item) {
+              if (item.pcode === pcode) {
+                //console.log('found param:',item)
+                $('#parameterSelect').select2('val', item.idx);
+                getData();
+              }
+            });
+            
+          }
+          openGraphingModule();
         }
       });
     });
@@ -202,20 +213,24 @@ $(document).ready(function () {
 
   habsSitesLayer.on('click', function (e) {
     $('#stationSelect').val(null).trigger('change');
+    $('#parameterSelect').val(null).trigger('change');
+    $('#graphContainer').html('');
 
     var siteName = e.layer.feature.properties['Station Name'];
     var siteID =  e.layer.feature.properties['Site ID'];
     var id = e.layer.feature.properties['id'];
-    console.log(id, siteID, siteName, e);
-
 
     //openPopup(e);
     $('#stationSelect').select2('val', id);
-    $('#graphModal').modal('show');
+    //$('#graphModal').modal('show');
   });
   /*  END EVENT HANDLERS */
 
 });
+
+String.prototype.trim = function() {
+  return this.replace(/^\s+|\s+$/g, '');
+}
 
 $.ajaxQueue = function(ajaxOpts) {
   // Hold the original complete function
@@ -238,6 +253,10 @@ $.ajaxQueue = function(ajaxOpts) {
     $.ajax(ajaxOpts);
   });
 };
+
+function openGraphingModule() {
+  $('#graphModal').modal('show');
+}
 
 function setDates() {
 
@@ -327,6 +346,8 @@ function downloadFile(data,filename) {
 
 function getData() {
 
+  $('#graph-loading').show();
+
   var compareYears = false;
   var dates = [];
   var requestDatas = [];
@@ -334,13 +355,9 @@ function getData() {
     format: 'json',
   };
 
-
-
   //----------------------------------------------
   //SHOW SELECTED SITES AS HIGHLIGHTED ON THE MAP
   //----------------------------------------------
-
-
 
   var siteData = $('#stationSelect').select2('data');
   var siteParameter = $('#parameterSelect').select2('data');
@@ -348,6 +365,7 @@ function getData() {
   //validate station and parameter selections
   if (siteData.length === 0 || siteParameter.length === 0) {
     alert('You must choose at least one station and one parameter to continue');
+    $('#graph-loading').hide();
     return;
   }
 
@@ -414,19 +432,18 @@ function getData() {
   
         if (data.value.timeSeries.length <= 0) {
           alert('Found an NWIS site [' + siteIDs + '] but it had no data in waterservices for [' +  parameterCodes + ']');
+          $('#graph-loading').hide();
           return;
         }
 
-        var startTime;
+        var startTime = data.value.queryInfo.criteria.timeParam.beginDateTime;   
     
         $(data.value.timeSeries).each(function (i, siteParamCombo) {
- 
-          startTime = new Date(siteParamCombo.values[0].value[0].dateTime)/1;
     
           var valueArray = siteParamCombo.values[0].value.map(function(item) {
             var seconds = new Date(item.dateTime)/1;
-            return item.value/1;
-            //return [seconds,item.value/1];
+            //return item.value/1;
+            return [seconds,item.value/1];
           });
     
           var series = {
@@ -473,7 +490,7 @@ function getRandomColor() {
 }
 
 function showGraph(startTime,seriesData) {
-  console.log('seriesData',startTime);
+  console.log('seriesData',startTime,seriesData);
 
   //clear out graphContainer
   $('#graphContainer').html('');
@@ -513,7 +530,7 @@ function showGraph(startTime,seriesData) {
 			type: "datetime",
 			labels: {
 				formatter: function () {
-					return Highcharts.dateFormat('%m/%d', this.value);
+					return Highcharts.dateFormat('%m/%d %H%P', this.value);
 				},
 				//rotation: 90,
 				align: 'center',
@@ -527,7 +544,6 @@ function showGraph(startTime,seriesData) {
 
   //loop over series data so we can match up the axis and series indexes
   $(seriesData).each(function (i, obj) {
-    console.log('test',obj)
     var yaxis =   {
       title: { 
         text: obj.unit,
@@ -563,6 +579,7 @@ function showGraph(startTime,seriesData) {
 
     // obj.yAxis = i;
     // chartSetup.yAxis.push(yaxis);
+    //console.log('here',obj)
     
     chartSetup.series.push(obj);
     
@@ -574,6 +591,8 @@ function showGraph(startTime,seriesData) {
   // https://www.highcharts.com/demo/combo-multi-axes
   // https://stackoverflow.com/questions/12419758/changing-series-color-in-highcharts-dynamically
   // https://stackoverflow.com/questions/17837340/highcharts-dynamically-change-axis-title-color
+
+  $('#graph-loading').hide();
 
 }
 
@@ -592,9 +611,9 @@ function initializeFilters(data) {
             
       $.each(parameterList, function (idx,item) {
         selectData.push({
-          id:idx,
-          text:item.desc,
-          value:item.pcode
+          "id":item.idx,
+          "text":item.desc,
+          "value":item.pcode
         });
       });
     }
@@ -624,65 +643,127 @@ function initializeFilters(data) {
   });
 }
 
-function openPopup(e) {
-  console.log('site clicked', e.layer.feature.properties);
+function addToLegend(properties, classString) {
 
-  var popupContent = '';
+  $("#legend > tbody").append('<tr class="site"><td><div><icon class="siteIcon ' + classString + '" /></div></td><td class="siteData" data-sitename="' + properties['Station Name'] +'" data-id="' + properties['id'] + '" data-siteid="' + properties['Site ID'] + '" ><span class="siteName">' + properties['Station Name'] + '</span><span class="ml-2 badge badge-success">Get Data</span></td></tr>');
 
-  //look up better header
-  $.each(e.layer.feature.properties, function (shortKey, property) {
+  //basic check for data
+  if (properties.dateTime) {
+    var d = new Date(properties.dateTime);  //2018-08-09T14:45:00.000-05:00
+    //var n = properties.dateTime;
+    var n = d.toLocaleString();
+  
+    //add sub-table header
+    var paramData = '<tr><td colspan="2"><table class="table table-sm mb-0"><tbody><tr><th colspan="2">Most recent values as of: ' + n + '</th><tr>';
 
-    //make sure we have something
-    if (property.length > 0) {
-
-      if(shortKey === 'Site ID') {
-        
-        popupContent += '<b>' + shortKey + ':</b>&nbsp;&nbsp;<a href="https://waterdata.usgs.gov/usa/nwis/uv?' + property + '" target="_blank">' + property + '</a></br>';
-
+    //add values
+    $.each(properties, function (key, value) {
+      if (/^\d+$/.test(key) && key.length === 5) {
+        paramData += '<tr class="siteData" data-sitename="' + properties['Station Name'] +'" data-id="' + properties['id'] + '" data-siteid="' + properties['Site ID'] + '" data-pcode="' + key + '"><td>' + value.name + '</td><td>' + value.value + '</td></tr>';
       }
-      //otherwise add as normal
-      else popupContent += '<b>' + shortKey + ':</b>&nbsp;&nbsp;' + property + '</br>';
-    }
-  });
+  
+    });
+    paramData += '</tbody></table></td><tr>';
+  
+    $("#legend > tbody").append(paramData);
+    $('#legend .siteIcon').attr('style', 'margin-top: -6px !important; margin-left: 3px !important');
+  }
+  else {
+    $("#legend > tbody").append('<tr><td colspan="2"><table class="table table-sm mb-0"><tbody><tr><th colspan="2">No data found in NWIS</th><tr>');
+  }
 
-  L.popup({ minWidth: 320 })
-    .setLatLng(e.latlng)
-    .setContent(popupContent)
-    .openOn(theMap);
-}
-
-function addToLegend(id, siteID, siteName, classString) {
-
-  $("#legend > tbody").append('<tr><th><div><icon class="siteIcon ' + classString + '" /></div></th><th data-id="' + id + '" data-siteid="' + siteID + '" class="siteName">' + siteName + '</th>');
 }
 
 function loadSites() {
 
   $.ajax({
     url: sitesURL,
+    dataType: 'json',
     success: function (data) {
+
       featureCollection = data;
 
-      var geoJSONlayer = geoJSON(featureCollection, {
-        pointToLayer: function (feature, latlng) {
-    
-          //considtional classString
-          var classString = 'wmm-pin wmm-mutedblue wmm-icon-circle wmm-icon-white wmm-size-25';
-    
-          addToLegend(feature.properties['id'], feature.properties['Site ID'], feature.properties['Station Name'], classString);
-    
-          var icon = L.divIcon({ className: classString });
-          return L.marker(latlng, { icon: icon });
-        }
-      });
-    
-      habsSitesLayer.addLayer(geoJSONlayer);
+      //get siteID list
+      var siteIDs = featureCollection.features.map(function(item) {
+        return item.properties['Site ID'];
+      }).join(',');
 
-      initializeFilters(featureCollection);
+      var parameterCodes = parameterList.map(function(item) {
+        return item.pcode;
+      }).join(',');
+
+      //console.log('TEST',siteIDs,parameterCodes)
+
+      //get most recent NWIS data
+      $.getJSON(NWISivURL, {
+          format: 'json',
+          sites: siteIDs,
+          parameterCd: parameterCodes
+        }, function success(data) {
+            console.log('NWIS IV Data:',data);
+
+            //we need to add new NWIS data as geoJSON featureCollection attributes
+            featureCollection.features.forEach(function (feature) {
+              var found = false;
+              data.value.timeSeries.forEach(function (NWISdata) {
+                var siteID = NWISdata.name.split('USGS:')[1].split(':')[0];
+                var pcode = NWISdata.name.split('USGS:' + siteID + ':')[1].split(':')[0];
+
+                if (siteID === feature.properties['Site ID']) {
+                  found = true;
+                  if (!(pcode in feature.properties) ) {
+                    feature.properties[pcode] = {};
+                    feature.properties[pcode].value = NWISdata.values[0].value[0].value;
+                    feature.properties.dateTime = NWISdata.values[0].value[0].dateTime;
+                    feature.properties[pcode].dateTime = NWISdata.values[0].value[0].dateTime;
+                    feature.properties[pcode].qualifiers = NWISdata.values[0].value[0].qualifiers;
+                    feature.properties[pcode].description = NWISdata.variable.variableDescription;
+                    feature.properties[pcode].name = NWISdata.variable.variableName;
+                  }
+                }
+
+                //console.log(siteID,pcode,feature.properties);
+              });
+              if (!found) console.log('no data found for:',feature.properties['Site ID'])
+            });
+
+            
+            var geoJSONlayer = geoJSON(featureCollection, {
+              pointToLayer: function (feature, latlng) {
+          
+                //considtional classString
+                var classString = 'wmm-pin wmm-mutedblue wmm-icon-circle wmm-icon-white wmm-size-25';
+          
+                addToLegend(feature.properties, classString);
+          
+                var icon = L.divIcon({ className: classString });
+                return L.marker(latlng, { icon: icon });
+              },
+              onEachFeature: function(feature, layer) {
+                var popupContent = '<a href="https://waterdata.usgs.gov/nwis/uv/?site_no=' + feature.properties['Site ID'] + '" target="_blank">' + feature.properties['Site ID'] + ' ' + feature.properties['Station Name'] + '</a>';
+
+                if (feature.properties['Station Name'] === 'SKANEATELES LAKE AT SKANEATELES') {
+                  popupContent += '<br><a href="https://cida.usgs.gov/stormsummary/timelapse/ProjectsRegional/GLRI/NewYork/NY_LAKE1_HABS_timelapse_videos/frame_gallery/index.html" target="_blank"><img style="width:100%;" src="https://cida.usgs.gov/stormsummary/timelapse/ProjectsRegional/GLRI/NewYork/NY_LAKE1_HABS_timelapse_videos/idx190_last_frame_in_current_timelapse.jpg"/></a>';
+                }
+
+                popupContent += '<br><h5><span class="openGraphingModule ml-2 badge badge-success" data-sitename="' + feature.properties['Station Name'] +'" data-id="' + feature.properties['id'] + '" data-siteid="' + feature.properties['Site ID'] + '" >Get Data</span></h5>';
+
+                layer.bindPopup(popupContent);
+              }
+            });
+          
+            habsSitesLayer.addLayer(geoJSONlayer);
+
+            initializeFilters(featureCollection);
+
+            // call a function on complete 
+            $('#loading').hide();
+            $('#legend').show();
+      });
+
     },
     complete: function () {
-      // call a function on complete 
-      $('#loading').hide();
+
     }
   });
 }
