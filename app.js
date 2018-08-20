@@ -58,10 +58,13 @@ var parameterList = [
   {idx:'4', pcode:'00400', desc:'pH'},
   {idx:'5', pcode:'63680', desc:'Turbidity, Form Neph'},
   {idx:'6', pcode:'32295', desc:'fDOM, water, in situ'},
-  {idx:'7', pcode:'32315', desc:'fChl, water, in situ'},
-  {idx:'8', pcode:'32319', desc:'fPC, water, in situ'},
-  {idx:'9', pcode:'00060', desc:'Discharge'},
-  {idx:'10', pcode:'00065', desc:'Gage height'}
+  {idx:'7', pcode:'32322', desc:'fDOM, water, in situ'},
+  {idx:'8', pcode:'32315', desc:'fChl, water, in situ'},
+  {idx:'9', pcode:'32316', desc:'fChl, water, in situ'},
+  {idx:'10', pcode:'32319', desc:'fPC, water, in situ'},
+  {idx:'11', pcode:'32321', desc:'fPC, water, in situ'},
+  {idx:'12', pcode:'00060', desc:'Discharge'},
+  {idx:'13', pcode:'00065', desc:'Gage height'}
 ];
 
 var noaaSitesJSON = './noaaSites.json';  //lookup file of all NOAA sites with USGS gages
