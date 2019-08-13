@@ -169,6 +169,10 @@ color:white;
   ===========================
 */
 
+#legend .table-expander {
+  cursor: pointer;
+}
+
 .table-sm{
   font-size: 14px;
 }

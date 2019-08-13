@@ -32,12 +32,12 @@ import addExporting from "highcharts/modules/exporting";
 addExporting(Highcharts)
 import 'bootstrap-datepicker';
 import { map, control, tileLayer, featureGroup, geoJSON, Icon } from 'leaflet';
-import { basemapLayer, dynamicMapLayer } from 'esri-leaflet';
+import { basemapLayer, dynamicMapLayer, imageMapLayer } from 'esri-leaflet';
 
 //START user config variables
-var MapX = '-76.42'; //set initial map longitude
-var MapY = '42.93'; //set initial map latitude
-var MapZoom = 13; //set initial map zoom
+var MapX = '-76.60'; //set initial map longitude
+var MapY = '42.88'; //set initial map latitude
+var MapZoom = 10; //set initial map zoom
 var sitesURL = './sitesGeoJSON.json';
 var NWISivURL = 'https://nwis.waterservices.usgs.gov/nwis/iv/';
 //END user config variables 
@@ -45,37 +45,11 @@ var NWISivURL = 'https://nwis.waterservices.usgs.gov/nwis/iv/';
 //START global variables
 var theMap;
 var featureCollection;
-var baseMapLayer, basemaplayerLabels;
+var sentinalBaseMapLayer, baseMapLayer, basemaplayerLabels;
 var weatherLayer = {};
 var habsSitesLayer;
 var seriesData;
-var popup;
-
-var parameterList = [
-  {idx:'1', pcode:'00010', desc:'Temperature, water'},
-  {idx:'2', pcode:'00095', desc:'Specific cond at 25C'},
-  {idx:'3', pcode:'00300', desc:'Dissolved oxygen'},
-  {idx:'4', pcode:'00400', desc:'pH'},
-  {idx:'5', pcode:'63680', desc:'Turbidity, Form Neph'},
-  {idx:'6', pcode:'32295', desc:'fDOM, water, in situ'},
-  {idx:'7', pcode:'32322', desc:'fDOM, water, in situ'},
-  {idx:'8', pcode:'32315', desc:'fChl, water, in situ'},
-  {idx:'9', pcode:'32316', desc:'fChl, water, in situ'},
-  {idx:'10', pcode:'32319', desc:'fPC, water, in situ'},
-  {idx:'11', pcode:'32321', desc:'fPC, water, in situ'},
-  {idx:'12', pcode:'00060', desc:'Discharge'},
-  {idx:'13', pcode:'00065', desc:'Gage height'}
-];
-
-var noaaSitesJSON = './noaaSites.json';  //lookup file of all NOAA sites with USGS gages
-var cwisURL = 'https://txdata.usgs.gov/CWIS/Services/1.0/services/request.ashx/getData';
-var cwisOptions = {
-	service: 'flow',
-	states: 'NY',
-	format: 'geojson'
-};
-var cwisRefreshInterval;
-var noaaSitesJson;
+var parameterList = [];
 
 var ajaxQueue = $({});
 //END global variables
@@ -99,6 +73,21 @@ $(document).ready(function () {
     attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
     maxZoom: 16
   }).addTo(theMap);
+
+  var days = 7; // Days you want to subtract
+  var date = new Date();
+  var last = new Date(date.getTime() - (days * 24 * 60 * 60 * 1000));
+
+  // sentinalBaseMapLayer = imageMapLayer({
+  //   url: 'https://landsatlook.usgs.gov/arcgis/rest/services/Sentinel2/ImageServer',
+  //   f:'image',
+  //   format:'jpg',
+  //   renderingRule:{"rasterFunction":"Stretch","rasterFunctionArguments":{"StretchType":0},"variableName":"Raster"},
+  //   mosaicRule:{"mosaicMethod":"esriMosaicLockRaster","ascending":true,"lockRasterIds":[8357791,8267262,7948898,7697089,7691608,6472717],"mosaicOperation":"MT_FIRST"},
+  //   imageSR:'102100',
+  //   bboxSR:'102100',
+  //   size:'2219,733'
+  // }).addTo(theMap);
 
   weatherLayer.NexRad = tileLayer('https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png', {opacity : 0.5 });
   weatherLayer.Precip = tileLayer('https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/q2-n1p-900913/{z}/{x}/{y}.png', {opacity : 0.5 });
@@ -166,8 +155,8 @@ $(document).ready(function () {
     openGraphingModule();
   });  
 
-  $('#legend').on("mouseenter", ".siteData", function(){
-    
+  $('#legend').on("mouseenter", ".site", function(){
+ 
     var siteName = $(this).data('sitename');
 
     habsSitesLayer.eachLayer(function(geoJSON){
@@ -182,31 +171,36 @@ $(document).ready(function () {
   });
 
   $('#legend').on("click", ".siteData", function(){
-    //console.log('click')
+    
     $('#stationSelect').val(null).trigger('change');
     $('#parameterSelect').val(null).trigger('change');
     $('#graphContainer').html('');
 
-    var pcode = String($(this).data('pcode'));
+    var pcode_tsid = String($(this).data('pcode_tsid'));
+    var pcode = pcode_tsid.split(':')[0];
     var siteName = $(this).data('sitename');
     var id = String($(this).data('id'));
 
-    //console.log(siteName,pcode,id)
+    //console.log('parameter list:',parameterList)
 
     habsSitesLayer.eachLayer(function(geoJSON){
       geoJSON.eachLayer(function(layer) {
         if (siteName == layer.feature.properties['Station Name']) {
-          $('#stationSelect').select2('val', id);
-          //make pcode selection
-          if (pcode) {
+
+          //select station based on where click was in legend
+          $('#stationSelect').val(id).trigger("change");
+
+          //select pcode:tsid based on where click was in legend
+          if (pcode_tsid) {
             $.each(parameterList, function (idx,item) {
-              if (item.pcode === pcode) {
-                //console.log('found param:',item)
-                $('#parameterSelect').select2('val', item.idx);
+              if (item.pcode == pcode) {
+                //console.log('Found paramater match:',pcode_tsid, item);
+
+                $("#parameterSelect").val(item.idx).trigger("change");
                 getData();
+                
               }
             });
-            
           }
           openGraphingModule();
         }
@@ -223,10 +217,14 @@ $(document).ready(function () {
     var siteID =  e.layer.feature.properties['Site ID'];
     var id = e.layer.feature.properties['id'];
 
-    //openPopup(e);
     $('#stationSelect').select2('val', id);
-    //$('#graphModal').modal('show');
   });
+
+  habsSitesLayer.on("popupopen", function(e){
+    //make sure map pans for loaded images
+    $(".leaflet-popup-content img").one("load", function(){ e.popup.update(); });
+  });
+
   /*  END EVENT HANDLERS */
 
 });
@@ -398,7 +396,7 @@ function getData() {
   requestData.sites = siteIDs;
 
   var parameterCodes = siteParameter.map(function(item) {
-    return item.value;
+    return item.value.split(':')[0];
   }).join(',');
   requestData.parameterCd = parameterCodes;
 
@@ -429,7 +427,7 @@ function getData() {
       type: 'GET',
       success: function(data) {
 
-        console.log( data);
+        //console.log( data);
 
         counter += 1;
   
@@ -440,37 +438,52 @@ function getData() {
         }
 
         var startTime = data.value.queryInfo.criteria.timeParam.beginDateTime;   
+        var qualifierFound = false;
     
         $(data.value.timeSeries).each(function (i, siteParamCombo) {
-    
-          var valueArray = siteParamCombo.values[0].value.map(function(item) {
-            var seconds = new Date(item.dateTime)/1;
-            //return item.value/1;
-            return [seconds,item.value/1];
-          });
-    
-          var series = {
-            showInLegend: true,
-            values: siteParamCombo.values[0].value,
-            data: valueArray,
-            color: getRandomColor(),
-            siteID: siteParamCombo.sourceInfo.siteCode[0].value,
-            siteName: siteParamCombo.sourceInfo.siteName,
-            siteCode: siteParamCombo.name,
-            variableDescription: siteParamCombo.variable.variableDescription,
-            variableName: siteParamCombo.variable.variableName,
-            unit: siteParamCombo.variable.unit.unitCode,
-            name: siteParamCombo.sourceInfo.siteName + ' | ' + $('<div>').html(siteParamCombo.variable.variableName).text(),
-          };
 
-          //update the name to include the year if compare years is on
-          if (compareYears) {
-            series.name = data.value.queryInfo.note[1].value.split('INTERVAL[')[1].split('-')[0] + ' | ' + siteParamCombo.sourceInfo.siteName + ' | ' + $('<div>').html(siteParamCombo.variable.variableName).text(); 
-          }
-    
-          seriesData.push(series);
-    
+          $(siteParamCombo.values).each(function (i, value) {
+            var valueArray = value.value.map(function(item) {
+              var seconds = new Date(item.dateTime)/1;
+              var itemValue = item.value/1;
+
+              //null out the values if there is a maintenance flag
+              if (item.qualifiers.indexOf('Mnt') !== -1 || item.qualifiers.indexOf('Eqp') !== -1) {
+                itemValue = null;
+                qualifierFound = true;
+              }
+
+              return [seconds,itemValue];
+            });
+
+            var name;
+            if (value.method[0].methodDescription.length > 0) name = siteParamCombo.sourceInfo.siteName + ' | ' + $('<div>').html(siteParamCombo.variable.variableName).text() + ' | ' + value.method[0].methodDescription;
+            else name = siteParamCombo.sourceInfo.siteName + ' | ' + $('<div>').html(siteParamCombo.variable.variableName).text();
+      
+            var series = {
+              showInLegend: true,
+              values: value,
+              data: valueArray,
+              color: getRandomColor(),
+              siteID: siteParamCombo.sourceInfo.siteCode[0].value,
+              siteName: siteParamCombo.sourceInfo.siteName,
+              siteCode: siteParamCombo.name,
+              variableDescription: siteParamCombo.variable.variableDescription,
+              variableName: siteParamCombo.variable.variableName,
+              unit: siteParamCombo.variable.unit.unitCode,
+              name:name,
+            };
+  
+            //update the name to include the year if compare years is on
+            if (compareYears) {
+              series.name = data.value.queryInfo.note[1].value.split('INTERVAL[')[1].split('-')[0] + ' | ' + siteParamCombo.sourceInfo.siteName + ' | ' + $('<div>').html(siteParamCombo.variable.variableName).text(); 
+            }
+      
+            seriesData.push(series);
+          });
         });
+
+        //console.log('seriesData:',JSON.stringify(seriesData));
 
         //check if were done
         if (counter === requestDatas.length) {
@@ -599,7 +612,11 @@ function showGraph(startTime,seriesData) {
 
 }
 
-function initializeFilters(data) {
+function initializeFilters(featureCollection) {
+
+  //sort parameter list
+  parameterList.sort((a, b) => a.pcode.localeCompare(b.pcode))
+  console.log('parameter list:',parameterList)
 
   $('.appFilter').each(function (i, obj) {
 
@@ -607,27 +624,28 @@ function initializeFilters(data) {
     var selectName = $(obj).data('selectname');
     var selectData = [];
 
-    console.log('processing:',divID,selectName)
-
+    //console.log('processing:',divID,selectName)
     
     if (divID === 'parameterSelect') {
-            
+
       $.each(parameterList, function (idx,item) {
         selectData.push({
           "id":item.idx,
-          "text":item.desc,
+          "text":item.pcode + ' | ' + item.desc,
           "value":item.pcode
         });
       });
+
+      console.log('selectData:',selectData)
     }
 
     if (divID === 'stationSelect') {
 
-      $.each(data.features, function (idx,item) {
+      $.each(featureCollection.features, function (idx,feature) {
         selectData.push({
-          "id":item.properties['id'],
-          "text":item.properties['Station Name'],
-          "value":item.properties['Site ID']
+          "id":feature.properties['id'],
+          "text":feature.properties['Station Name'],
+          "value":feature.properties['Site ID']
         });
       });
     }
@@ -638,17 +656,22 @@ function initializeFilters(data) {
       dropdownAutoWidth: true
     });
 
+    //console.log('checking select data for:', divID, $('#' + divID).find("option"))
+
     //watch for any change, and spawn a parameter selector for each site that is selected
     $('#' + divID).on('change', function (e) {
-      var data = $('#' + divID).select2('data');
+      $('#' + divID).select2('data');
     });
-
   });
 }
 
-function addToLegend(properties, classString) {
+function addToLegend(properties) {
 
-  $("#legend > tbody").append('<tr class="site"><td><div><icon class="siteIcon ' + classString + '" /></div></td><td class="siteData" data-sitename="' + properties['Station Name'] +'" data-id="' + properties['id'] + '" data-siteid="' + properties['Site ID'] + '" ><span class="siteName">' + properties['Station Name'] + '</span><span class="ml-2 badge badge-success">Get Data</span></td></tr>');
+  var classString = 'wmm-pin wmm-mutedblue wmm-icon-circle wmm-icon-white wmm-size-25';
+
+  $('#legend > tbody').append('<tr class="site table-expander accordion-toggle" data-toggle="collapse" data-target=".siteData' + properties['id'] + '" data-sitename="' + properties['Station Name'] +'" data-id="' + properties['id'] + '" data-siteid="' + properties['Site ID'] + '"><td><div><icon class="siteIcon ' + classString + '" /></div></td><td><span class="siteName">' + properties['Station Name'] + '</span><span class="ml-2 badge badge-success float-right">Get Data</span></td></tr>');
+
+  $('#legend .siteIcon').attr('style', 'margin-top: -6px !important; margin-left: 3px !important');
 
   //basic check for data
   if (properties.dateTime) {
@@ -657,19 +680,26 @@ function addToLegend(properties, classString) {
     var n = d.toLocaleString();
   
     //add sub-table header
-    var paramData = '<tr><td colspan="2"><table class="table table-sm mb-0"><tbody><tr><th colspan="2">Most recent values as of: ' + n + '</th><tr>';
+    //var paramData = '<tr><td colspan="2"><table class="table table-sm mb-0"><tbody><tr data-toggle="collapse" data-target=".siteData' + properties['id'] + '" class="table-expander accordion-toggle"><th data-toggle="collapse" data-target=".multi-collapse' + properties['id'] + '" aria-expanded="false">Most recent values as of: ' + n + '<span class="collapse show multi-collapse' + properties['id'] + ' float-right">[+]</span><span class="collapse multi-collapse' + properties['id'] + ' float-right">[-]</span></th><tr>';
+
+    //var paramData = '<tr class="siteData' + properties['id'] + ' accordian-body collapse"><td colspan="2"><table class="table table-sm mb-0"><tbody><tr><th>Most recent values as of: ' + n + '</th><tr>';
+
+    var paramData = '<tr class="siteData' + properties['id'] + ' accordian-body collapse"><td colspan="2"><table class="table table-sm mb-0"><tbody><tr><th colspan="2">Most recent values as of: ' + n + '</th><tr>';
+
+
 
     //add values
     $.each(properties, function (key, value) {
-      if (/^\d+$/.test(key) && key.length === 5) {
-        paramData += '<tr class="siteData" data-sitename="' + properties['Station Name'] +'" data-id="' + properties['id'] + '" data-siteid="' + properties['Site ID'] + '" data-pcode="' + key + '"><td>' + value.name + '</td><td>' + value.value + '</td></tr>';
+      var pcode = key.split(':')[0];
+      if (/^\d+$/.test(pcode) && pcode.length === 5) {
+        paramData += '<tr style="padding: 0 !important;" class="site siteData" data-sitename="' + properties['Station Name'] +'" data-id="' + properties['id'] + '" data-siteid="' + properties['Site ID'] + '" data-pcode_tsid="' + key + '"><td>' + value.name + '</td><td>' + value.value + '</td></tr>';
       }
   
     });
     paramData += '</tbody></table></td><tr>';
   
     $("#legend > tbody").append(paramData);
-    $('#legend .siteIcon').attr('style', 'margin-top: -6px !important; margin-left: 3px !important');
+    //$('#legend .siteIcon').attr('style', 'margin-top: -6px !important; margin-left: 3px !important');
   }
   else {
     $("#legend > tbody").append('<tr><td colspan="2"><table class="table table-sm mb-0"><tbody><tr><th colspan="2">No data found in NWIS</th><tr>');
@@ -683,6 +713,7 @@ function loadSites() {
     url: sitesURL,
     dataType: 'json',
     success: function (data) {
+      //console.log(data)
 
       featureCollection = data;
 
@@ -691,72 +722,103 @@ function loadSites() {
         return item.properties['Site ID'];
       }).join(',');
 
-      var parameterCodes = parameterList.map(function(item) {
-        return item.pcode;
-      }).join(',');
-
-      //console.log('TEST',siteIDs,parameterCodes)
-
       //get most recent NWIS data
       $.getJSON(NWISivURL, {
           format: 'json',
           sites: siteIDs,
-          parameterCd: parameterCodes
+          //parameterCd: parameterCodes
         }, function success(data) {
             console.log('NWIS IV Data:',data);
+
+            var idx = 1;
 
             //we need to add new NWIS data as geoJSON featureCollection attributes
             featureCollection.features.forEach(function (feature) {
               var found = false;
+
+
               data.value.timeSeries.forEach(function (NWISdata) {
-                var siteID = NWISdata.name.split('USGS:')[1].split(':')[0];
-                var pcode = NWISdata.name.split('USGS:' + siteID + ':')[1].split(':')[0];
+                var site_data = NWISdata.name.split(':');
+                var siteID = site_data[1];
+                var pcode = site_data[2];
+                var pcode_tsid = '';
 
                 if (siteID === feature.properties['Site ID']) {
                   found = true;
-                  if (!(pcode in feature.properties) ) {
-                    feature.properties[pcode] = {};
-                    feature.properties[pcode].value = NWISdata.values[0].value[0].value;
-                    feature.properties.dateTime = NWISdata.values[0].value[0].dateTime;
-                    feature.properties[pcode].dateTime = NWISdata.values[0].value[0].dateTime;
-                    feature.properties[pcode].qualifiers = NWISdata.values[0].value[0].qualifiers;
-                    feature.properties[pcode].description = NWISdata.variable.variableDescription;
-                    feature.properties[pcode].name = NWISdata.variable.variableName;
-                  }
+
+                  NWISdata.values.forEach(function (TSID) {
+                    pcode_tsid = pcode + ':' + TSID.method[0].methodID;
+
+                    var description;
+                    if (TSID.method[0].methodDescription.length > 0) description = NWISdata.variable.variableDescription + ', ' + TSID.method[0].methodDescription;
+                    else description = NWISdata.variable.variableDescription;
+
+                    var parameterObj = {
+                      "idx": String(idx),
+                      "pcode": pcode,
+                      "desc": NWISdata.variable.variableDescription
+                    };
+
+                    //push to parameter list if we don't have it yet
+                    if (!parameterList.some(item => item.pcode === pcode)) {
+                      parameterList.push(parameterObj);
+                      idx+=1;
+                    }
+
+                    if (!(pcode_tsid in feature.properties) ) {
+                      feature.properties[pcode_tsid] = {};
+                      feature.properties[pcode_tsid].value = TSID.value[0].value;
+                      
+                      //null out the values if there is a maintenance flag
+                      if (TSID.value[0].qualifiers.indexOf('Mnt') !== -1 || TSID.value[0].qualifiers.indexOf('Eqp') !== -1 || TSID.value[0].qualifiers.indexOf('Ssn') !== -1) {
+                        feature.properties[pcode_tsid].value = null;
+                      }
+
+                      feature.properties.dateTime = TSID.value[0].dateTime;
+                      feature.properties[pcode_tsid].dateTime = TSID.value[0].dateTime;
+                      feature.properties[pcode_tsid].qualifiers = TSID.value[0].qualifiers;
+                      feature.properties[pcode_tsid].description = description;
+                      feature.properties[pcode_tsid].name = NWISdata.variable.variableName + ', ' + TSID.method[0].methodDescription;
+                    }
+                  });
                 }
-
-                //console.log(siteID,pcode,feature.properties);
               });
-              if (!found) console.log('no data found for:',feature.properties['Site ID'])
+              if (!found) console.log('no data found for:',feature.properties['Site ID'])  
             });
-
             
             var geoJSONlayer = geoJSON(featureCollection, {
               pointToLayer: function (feature, latlng) {
-          
-                //considtional classString
+
                 var classString = 'wmm-pin wmm-mutedblue wmm-icon-circle wmm-icon-white wmm-size-25';
           
-                addToLegend(feature.properties, classString);
+                addToLegend(feature.properties);
           
                 var icon = L.divIcon({ className: classString });
                 return L.marker(latlng, { icon: icon });
               },
               onEachFeature: function(feature, layer) {
-                var popupContent = '<a href="https://waterdata.usgs.gov/nwis/uv/?site_no=' + feature.properties['Site ID'] + '" target="_blank">' + feature.properties['Site ID'] + ' ' + feature.properties['Station Name'] + '</a>';
+                var popupContent = '<b>Site ID: </b><a href="https://waterdata.usgs.gov/nwis/uv/?site_no=' + feature.properties['Site ID'] + '" target="_blank">' + feature.properties['Site ID'] + '</a><br><b>Station Name:</b> ' + feature.properties['Station Name'];
 
-                if (feature.properties['Station Name'] === 'SKANEATELES LAKE AT SKANEATELES') {
-                  popupContent += '<br><a href="https://cida.usgs.gov/stormsummary/timelapse/ProjectsRegional/GLRI/NewYork/NY_LAKE1_HABS_timelapse_videos/frame_gallery/index.html" target="_blank"><img style="width:100%;" src="https://cida.usgs.gov/stormsummary/timelapse/ProjectsRegional/GLRI/NewYork/NY_LAKE1_HABS_timelapse_videos/idx190_last_frame_in_current_timelapse.jpg"/></a>';
+                if (feature.properties['photoURL'] && feature.properties['photoURL'].length > 0) {
+                  popupContent += '<br><b>Site photo (static): </b><a href="' + feature.properties['photoURL'] + '" target="_blank">link</a>';
+                }
+
+                if (feature.properties['webcams'] && feature.properties['webcams'].length > 0) {
+                  feature.properties['webcams'].forEach(function (webcam) {
+                    popupContent += '<br><b>Webcam photo (live):</b><a href="' + webcam['webcamLink'] + '" target="_blank"><img style="width:100%;" src="' + webcam['webcamURL'] + '"/></a>';
+                  });
                 }
 
                 popupContent += '<br><h5><span class="openGraphingModule ml-2 badge badge-success" data-sitename="' + feature.properties['Station Name'] +'" data-id="' + feature.properties['id'] + '" data-siteid="' + feature.properties['Site ID'] + '" >Get Data</span></h5>';
 
                 layer.bindPopup(popupContent);
+
+                //console.log('feature:',feature.properties)
               }
             });
           
             habsSitesLayer.addLayer(geoJSONlayer);
-
+            
             initializeFilters(featureCollection);
 
             // call a function on complete 
@@ -783,6 +845,7 @@ function setWeatherLayer(layer) {
 function setBasemap(baseMap) {
 
   switch (baseMap) {
+    case 'Sentinel': baseMap = 'Sentinel'; break;
     case 'Streets': baseMap = 'Streets'; break;
     case 'Satellite': baseMap = 'Imagery'; break;
     case 'Clarity': baseMap = 'ImageryClarity'; break;
