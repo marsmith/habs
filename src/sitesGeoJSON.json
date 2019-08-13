@@ -1,0 +1,111 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+  {
+    "type": "Feature",
+    "geometry": {
+        "type": "Point",
+        "coordinates":  [ -76.94558330,42.84080556 ]
+    },
+    "properties": {
+      "id":"1",
+      "Station Name": "SENECA LAKE PLATFORM",
+      "Site ID": "425027076564401",
+      "photoURL": "https://ny.water.usgs.gov/images/StationPictures/425027076564401.jpg",
+      "webcams" : [
+        {
+          "webcamURL":"https://cida.usgs.gov/stormsummary/timelapse/BasicData/NYWSC/NY/NY_Seneca_HABs_timelapse_videos/idx289_last_frame_in_current_timelapse.jpg",
+          "webcamLink":"https://cida.usgs.gov/stormsummary/timelapse/BasicData/NYWSC/NY/NY_Seneca_HABs_timelapse_videos/frame_gallery/"
+        },
+        {
+          "webcamURL":"https://cida.usgs.gov/stormsummary/timelapse/BasicData/NYWSC/NY/NY_Seneca_HABs_2_timelapse_videos/idx290_last_frame_in_current_timelapse.jpg",
+          "webcamLink":"https://cida.usgs.gov/stormsummary/timelapse/BasicData/NYWSC/NY/NY_Seneca_HABs_2_timelapse_videos/frame_gallery/"
+        }
+      ]
+    }
+  },
+  {
+    "type": "Feature",
+    "geometry": {
+        "type": "Point",
+        "coordinates":  [ -76.52675000,42.89088889 ]
+    },
+    "properties": {
+      "id":"2",
+      "Station Name":"OWASCO LAKE PLATFORM",
+      "Site ID":"425327076313601",
+      "photoURL": "https://ny.water.usgs.gov/images/StationPictures/425327076313601.jpg",
+      "webcams" : [
+        {
+          "webcamURL":"https://cida.usgs.gov/stormsummary/timelapse/BasicData/NYWSC/NY/NY_Owasco_HABs_timelapse_videos/idx291_last_frame_in_current_timelapse.jpg",
+          "webcamLink":"https://cida.usgs.gov/stormsummary/timelapse/BasicData/NYWSC/NY/NY_Owasco_HABs_timelapse_videos/frame_gallery/"
+        },
+        {
+          "webcamURL":"https://cida.usgs.gov/stormsummary/timelapse/BasicData/NYWSC/NY/NY_Owasco_HABs_2_timelapse_videos/idx292_last_frame_in_current_timelapse.jpg",
+          "webcamLink":"https://cida.usgs.gov/stormsummary/timelapse/BasicData/NYWSC/NY/NY_Owasco_HABs_2_timelapse_videos/frame_gallery/"
+        }
+      ]
+
+    }
+  },
+ {
+   "type": "Feature",
+   "geometry": {
+      "type": "Point",
+      "coordinates":  [ -76.41455560,42.91811110 ]
+   },
+   "properties": {
+    "id":"3",
+    "Station Name":"SKANEATELES LAKE PLATFORM",
+    "Site ID":"425606076251601",
+    "photoURL":"https://ny.water.usgs.gov/images/StationPictures/425606076251601.jpg",
+    "webcams" : [
+      {
+        "webcamURL":"https://cida.usgs.gov/stormsummary/timelapse/BasicData/NYWSC/NY/NY_Skaneateles_HABs_East_timelapse_videos/idx300_last_frame_in_current_timelapse.jpg",
+        "webcamLink":"https://cida.usgs.gov/stormsummary/timelapse/BasicData/NYWSC/NY/NY_Skaneateles_HABs_East_timelapse_videos/frame_gallery/"
+      },
+      {
+        "webcamURL":"https://cida.usgs.gov/stormsummary/timelapse/BasicData/NYWSC/NY/NY_Skaneateles_HABs_North_timelapse_videos/idx301_last_frame_in_current_timelapse.jpg",
+        "webcamLink":"https://cida.usgs.gov/stormsummary/timelapse/BasicData/NYWSC/NY/NY_Skaneateles_HABs_North_timelapse_videos/frame_gallery/"
+      }
+    ]
+   }
+ },
+ {
+  "type": "Feature",
+  "geometry": {
+     "type": "Point",
+     "coordinates":  [ -76.42919170,42.94476667 ]
+  },
+  "properties": {
+    "id":"4",
+    "Station Name":"SKANEATELES LAKE AT SKANEATELES",
+    "Site ID":"04236000",
+    "photoURL":"https://ny.water.usgs.gov/images/StationPictures/04236000.jpg",
+    "webcams" : [
+      {
+        "webcamURL":"https://cida.usgs.gov/stormsummary/timelapse/ProjectsRegional/GLRI/NewYork/NY_LAKE1_HABS_timelapse_videos/idx190_last_frame_in_current_timelapse.jpg",
+        "webcamLink":"https://cida.usgs.gov/stormsummary/timelapse/ProjectsRegional/GLRI/NewYork/NY_LAKE1_HABS_timelapse_videos/frame_gallery/index.html"
+      }
+    ]
+
+  }
+ },
+ {
+  "type": "Feature",
+  "geometry": {
+     "type": "Point",
+     "coordinates":  [ -74.6397405,40.9362138 ]
+  },
+  "properties": {
+    "id":"4",
+    "Station Name":"LAKE HOPATCONG PLATFORM",
+    "Site ID":"405610074382301",
+    "photoURL":"",
+    "webcams" : [
+    ]
+
+  }
+ }
+]
+}

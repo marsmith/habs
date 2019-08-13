@@ -13,9 +13,8 @@
 
 //CSS imports
 import 'bootstrap/dist/css/bootstrap.css';
-import 'font-awesome/css/font-awesome.css';
+import 'marker-creator/public/css/markers.css';
 import 'leaflet/dist/leaflet.css';
-import 'marker-creator/stylesheets/markers.css';
 import 'select2/dist/css/select2.css';
 import 'bootstrap-datepicker/dist/css/bootstrap-datepicker.css';
 import './styles/main.css';
@@ -26,13 +25,32 @@ import 'bootstrap/js/dist/modal';
 import 'bootstrap/js/dist/collapse';
 import 'bootstrap/js/dist/tab';
 import 'select2';
-import moment from 'moment'
 import Highcharts from 'highcharts';
-import addExporting from "highcharts/modules/exporting";
-addExporting(Highcharts)
+import addExporting from 'highcharts/modules/exporting';
 import 'bootstrap-datepicker';
 import { map, control, tileLayer, featureGroup, geoJSON, Icon } from 'leaflet';
-import { basemapLayer, dynamicMapLayer, imageMapLayer } from 'esri-leaflet';
+import { basemapLayer, dynamicMapLayer } from 'esri-leaflet';
+addExporting(Highcharts);
+import { config, library, dom } from '@fortawesome/fontawesome-svg-core';
+import { faBars } from '@fortawesome/free-solid-svg-icons/faBars';
+import { faInfo } from '@fortawesome/free-solid-svg-icons/faInfo';
+import { faPlus } from '@fortawesome/free-solid-svg-icons/faPlus';
+import { faMinus } from '@fortawesome/free-solid-svg-icons/faMinus';
+import { faExclamationCircle } from '@fortawesome/free-solid-svg-icons/faExclamationCircle';
+import { faQuestionCircle } from '@fortawesome/free-solid-svg-icons/faQuestionCircle';
+import { faCog } from '@fortawesome/free-solid-svg-icons/faCog';
+
+import { faTwitterSquare } from '@fortawesome/free-brands-svg-icons/faTwitterSquare';
+import { faFacebookSquare } from '@fortawesome/free-brands-svg-icons/faFacebookSquare';
+import { faGooglePlusSquare } from '@fortawesome/free-brands-svg-icons/faGooglePlusSquare';
+import { faGithubSquare } from '@fortawesome/free-brands-svg-icons/faGithubSquare';
+import { faFlickr } from '@fortawesome/free-brands-svg-icons/faFlickr';
+import { faYoutubeSquare } from '@fortawesome/free-brands-svg-icons/faYoutubeSquare';
+import { faInstagram } from '@fortawesome/free-brands-svg-icons/faInstagram';
+
+library.add(faBars, faPlus, faMinus, faInfo, faExclamationCircle, faCog, faQuestionCircle, faTwitterSquare, faFacebookSquare,faGooglePlusSquare, faGithubSquare, faFlickr, faYoutubeSquare, faInstagram );
+config.searchPseudoElements = true;
+dom.watch();
 
 //START user config variables
 var MapX = '-76.60'; //set initial map longitude
