@@ -68,7 +68,14 @@
         "webcamURL":"https://cida.usgs.gov/stormsummary/timelapse/BasicData/NYWSC/NY/NY_Skaneateles_HABs_North_timelapse_videos/idx301_last_frame_in_current_timelapse.jpg",
         "webcamLink":"https://cida.usgs.gov/stormsummary/timelapse/BasicData/NYWSC/NY/NY_Skaneateles_HABs_North_timelapse_videos/frame_gallery/"
       }
+    ],
+    "Non-NWIS Parameters" : [
+      "ADCP X Velocity",
+      "ADCP Y Velocity",
+      "ADCP Z Velocity",
+      "ADCP Echo Intensity"
     ]
+      
    }
  },
  {
@@ -98,9 +105,57 @@
      "coordinates":  [ -74.6397405,40.9362138 ]
   },
   "properties": {
-    "id":"4",
-    "Station Name":"LAKE HOPATCONG PLATFORM",
+    "id":"5",
+    "Station Name":"LAKE HOPATCONG BUOY",
     "Site ID":"405610074382301",
+    "photoURL":"",
+    "webcams" : [
+    ]
+
+  }
+ },
+ {
+  "type": "Feature",
+  "geometry": {
+     "type": "Point",
+     "coordinates":  [ -74.9312,40.6499 ]
+  },
+  "properties": {
+    "id":"6",
+    "Station Name":"SPRUCE RUN RESERVOIR BUOY",
+    "Site ID":"403859074555201",
+    "photoURL":"",
+    "webcams" : [
+    ]
+
+  }
+ },
+ {
+  "type": "Feature",
+  "geometry": {
+     "type": "Point",
+     "coordinates":  [ -73.77322500,42.65731110 ]
+  },
+  "properties": {
+    "id":"7",
+    "Station Name":"WASHINGTON LAKE NW",
+    "Site ID":"423931073462901",
+    "photoURL":"",
+    "webcams" : [
+    ]
+
+  }
+ },
+ {
+  "type": "Feature",
+  "geometry": {
+     "type": "Point",
+     "coordinates":  [ -73.77188330,42.65563330 ]
+  },
+  "properties": {
+    "id":"8",
+    "Station Name":"WASHINGTON LAKE SE",
+    "Site ID":"423920073461801",
     "photoURL":"",
     "webcams" : [
     ]

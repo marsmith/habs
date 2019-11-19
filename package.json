@@ -4,7 +4,7 @@
   "description": "HABS Mapper",
   "main": "webpack.config.js",
   "scripts": {
-    "start": "webpack-dev-server --mode development --open",
+    "start": "webpack-dev-server --mode development",
     "build": "webpack --mode production"
   },
   "author": "Martyn J. Smith",
@@ -17,11 +17,13 @@
     "bootstrap": ">=4.3.1",
     "bootstrap-datepicker": "^1.9.0",
     "esri-leaflet": "^2.3.0",
-    "highcharts": "^6.2.0",
+    "highcharts": "^7.2.1",
     "jquery": "^3.4.1",
     "knockout": "^3.5.0",
     "leaflet": "^1.5.1",
     "marker-creator": "git+https://github.com/USGS-WiM/marker-creator.git",
+    "moment": "^2.24.0",
+    "papaparse": "^5.0.2",
     "popper.js": "^1.15.0",
     "select2": "^4.0.8"
   },

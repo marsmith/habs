@@ -25,13 +25,16 @@ import 'bootstrap/js/dist/modal';
 import 'bootstrap/js/dist/collapse';
 import 'bootstrap/js/dist/tab';
 import 'select2';
+import moment from 'moment';
 import Highcharts from 'highcharts';
 import addExporting from 'highcharts/modules/exporting';
+import addHeatmap from 'highcharts/modules/heatmap';
 import 'bootstrap-datepicker';
 import { map, control, tileLayer, featureGroup, geoJSON, Icon } from 'leaflet';
 import { basemapLayer, dynamicMapLayer } from 'esri-leaflet';
 addExporting(Highcharts);
-import { config, library, dom } from '@fortawesome/fontawesome-svg-core';
+addHeatmap(Highcharts);
+import { library, dom } from '@fortawesome/fontawesome-svg-core';
 import { faBars } from '@fortawesome/free-solid-svg-icons/faBars';
 import { faInfo } from '@fortawesome/free-solid-svg-icons/faInfo';
 import { faPlus } from '@fortawesome/free-solid-svg-icons/faPlus';
@@ -49,13 +52,14 @@ import { faYoutubeSquare } from '@fortawesome/free-brands-svg-icons/faYoutubeSqu
 import { faInstagram } from '@fortawesome/free-brands-svg-icons/faInstagram';
 
 library.add(faBars, faPlus, faMinus, faInfo, faExclamationCircle, faCog, faQuestionCircle, faTwitterSquare, faFacebookSquare,faGooglePlusSquare, faGithubSquare, faFlickr, faYoutubeSquare, faInstagram );
-config.searchPseudoElements = true;
-dom.watch();
+dom.watch({
+  observeMutationsRoot: document.body
+});
 
 //START user config variables
-var MapX = '-76.60'; //set initial map longitude
-var MapY = '42.88'; //set initial map latitude
-var MapZoom = 10; //set initial map zoom
+var MapX = '-76.00'; //set initial map longitude
+var MapY = '42.2'; //set initial map latitude
+var MapZoom = 7; //set initial map zoom
 var sitesURL = './sitesGeoJSON.json';
 var NWISivURL = 'https://nwis.waterservices.usgs.gov/nwis/iv/';
 //END user config variables 
@@ -63,11 +67,14 @@ var NWISivURL = 'https://nwis.waterservices.usgs.gov/nwis/iv/';
 //START global variables
 var theMap;
 var featureCollection;
-var sentinalBaseMapLayer, baseMapLayer, basemaplayerLabels;
+var baseMapLayer, basemaplayerLabels;
 var weatherLayer = {};
 var habsSitesLayer;
 var seriesData;
 var parameterList = [];
+var nonNWISparameterList = [];
+var habsDBurl;
+process.env.NODE_ENV === 'production' ? habsDBurl = 'https://ny.water.usgs.gov/maps/habs/query.php' : habsDBurl = 'http://localhost:8080/habs/query.php';
 
 var ajaxQueue = $({});
 //END global variables
@@ -96,17 +103,6 @@ $(document).ready(function () {
   var date = new Date();
   var last = new Date(date.getTime() - (days * 24 * 60 * 60 * 1000));
 
-  // sentinalBaseMapLayer = imageMapLayer({
-  //   url: 'https://landsatlook.usgs.gov/arcgis/rest/services/Sentinel2/ImageServer',
-  //   f:'image',
-  //   format:'jpg',
-  //   renderingRule:{"rasterFunction":"Stretch","rasterFunctionArguments":{"StretchType":0},"variableName":"Raster"},
-  //   mosaicRule:{"mosaicMethod":"esriMosaicLockRaster","ascending":true,"lockRasterIds":[8357791,8267262,7948898,7697089,7691608,6472717],"mosaicOperation":"MT_FIRST"},
-  //   imageSR:'102100',
-  //   bboxSR:'102100',
-  //   size:'2219,733'
-  // }).addTo(theMap);
-
   weatherLayer.NexRad = tileLayer('https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png', {opacity : 0.5 });
   weatherLayer.Precip = tileLayer('https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/q2-n1p-900913/{z}/{x}/{y}.png', {opacity : 0.5 });
   weatherLayer.PrecipForecast1hr = dynamicMapLayer({url: 'https://idpgis.ncep.noaa.gov/arcgis/rest/services/NWS_Forecasts_Guidance_Warnings/wpc_qpf/MapServer', layers: [7], opacity : 0.5 });
@@ -122,6 +118,7 @@ $(document).ready(function () {
 
   loadSites();
   setDates();
+  // loadADCP();
 
   $('.datepicker').datepicker({
     format: 'yyyy-mm-dd'
@@ -181,8 +178,37 @@ $(document).ready(function () {
       geoJSON.eachLayer(function(layer) { 
         
         //console.log(siteName,layer.feature.properties['Station Name'])
-        if (siteName == layer.feature.properties['Station Name']) {
+        if (siteName === layer.feature.properties['Station Name']) {
+          //center map on new popup
+          theMap.setView([layer.feature.geometry.coordinates[1], layer.feature.geometry.coordinates[0]]);
+
+          //open popup
           layer.openPopup();
+
+        }
+      });
+    });
+  });
+
+  $('#legend').on("click", ".badge", function(){
+     
+    $('#stationSelect').val(null).trigger('change');
+    $('#graphContainer').html('');
+
+    var siteName = $(this).parent().parent().data('sitename');
+    var id = String($(this).parent().parent().data('id'));
+
+
+    console.log('Badge clicked for site name:',$(this).parent().parent().data('sitename'))
+
+    habsSitesLayer.eachLayer(function(geoJSON){
+      geoJSON.eachLayer(function(layer) {
+        if (siteName == layer.feature.properties['Station Name']) {
+
+          //select station based on where click was in legend
+          $('#stationSelect').val(id).trigger("change");
+
+          openGraphingModule();
         }
       });
     });
@@ -367,6 +393,9 @@ function getData() {
 
   $('#graph-loading').show();
 
+  $('#heatmapContainer').html('');
+  $('#graphContainer').html('');
+
   var compareYears = false;
   var dates = [];
   var requestDatas = [];
@@ -413,12 +442,63 @@ function getData() {
   }).join(',');
   requestData.sites = siteIDs;
 
-  var parameterCodes = siteParameter.map(function(item) {
-    return item.value.split(':')[0];
-  }).join(',');
-  requestData.parameterCd = parameterCodes;
+  console.log('selected params:',siteParameter )
 
-  requestDatas.push(requestData);
+  var parameterCodeList = siteParameter.map(function(item) {
+    return item.value;
+  });
+
+  //seperate pcode list into NWIS params and local params
+  var nwisList = [];
+  var localList = [];
+  var haveLocal = false;
+  $(parameterCodeList).each(function(idx, li) {
+      if (li.indexOf('ADCP_') !== -1) {
+        haveLocal = true;
+        localList.push(li);
+      }
+      else nwisList.push(li);
+
+  });
+
+  nwisList = nwisList.join(',');
+  localList = localList.join(',');
+
+  console.log('paramcodes:',nwisList, localList);
+
+  if (haveLocal) {
+
+    //build one request for each siteID
+    $(siteData).each(function(idx, site) {
+
+      var localRequest = JSON.parse(JSON.stringify(requestData));
+
+      if (site.value === "425606076251601") localRequest.tableName = "SkanPlatform_ADCP";
+
+      //passing param code list but dont really need it since were just returning everything in the table that matches date
+      localRequest.parameterCd = localList;
+      localRequest.source = 'local';
+  
+      //for testing
+      localRequest.startDT= '2019-07-22';
+      localRequest.endDT= '2019-07-23';
+
+      //adjust hours
+      localRequest.startDT = moment(localRequest.startDT + ' 00:00:00').subtract(4, 'hours').format('YYYY-MM-DD HH:mm:ss');
+      localRequest.endDT = moment(localRequest.endDT + ' 00:00:00').subtract(4, 'hours').format('YYYY-MM-DD HH:mm:ss');
+  
+      console.log('haveLocal', localRequest);
+  
+      requestDatas.push(localRequest);
+
+    });
+  }
+
+  else {
+    requestData.parameterCd = nwisList;
+    requestDatas.push(requestData);
+  }
+ 
 
   //if comparing years, get new dates minus one year
   if (compareYears) {
@@ -432,82 +512,274 @@ function getData() {
   }
 
   seriesData = [];
+  var startTime;
   var counter = 0;
+  var qualifierFound = false;
 
   console.log('Processing', requestDatas.length, 'requests');
 
   $(requestDatas).each(function (i, inputRequest) {
 
+    //overwrite url if source is legacy
+    var url = NWISivURL;
+    if (inputRequest.source == 'local') url = habsDBurl;
+
+    console.log('input Request:',url, inputRequest);
+
+    //check if this is a previous year
+    var previousYear = false;
+    if (compareYears && inputRequest.startDT < $('#startDate').val()) {
+      previousYear = true;
+    }
+
     console.log('url:',inputRequest)
     $.ajaxQueue({
-      url: NWISivURL, 
+      url: url, 
+      dataType: 'json',
       data: inputRequest, 
       type: 'GET',
       success: function(data) {
 
-        //console.log( data);
+        console.log('response', data);
 
         counter += 1;
   
-        if (data.value.timeSeries.length <= 0) {
-          alert('Found an NWIS site [' + siteIDs + '] but it had no data in waterservices for [' +  parameterCodes + ']');
+        if (data.value.hasOwnProperty('timeSeries') && data.value.timeSeries.length === 0) {
+          alert('Found an NWIS site [' + siteIDs + '] but it had no data in waterservices for [' + nwisList + ']');
           $('#graph-loading').hide();
           return;
         }
 
-        var startTime = data.value.queryInfo.criteria.timeParam.beginDateTime;   
-        var qualifierFound = false;
-    
-        $(data.value.timeSeries).each(function (i, siteParamCombo) {
-
-          $(siteParamCombo.values).each(function (i, value) {
-            var valueArray = value.value.map(function(item) {
-              var seconds = new Date(item.dateTime)/1;
-              var itemValue = item.value/1;
-
-              //null out the values if there is a maintenance flag
-              if (item.qualifiers.indexOf('Mnt') !== -1 || item.qualifiers.indexOf('Eqp') !== -1) {
-                itemValue = null;
-                qualifierFound = true;
-              }
-
-              return [seconds,itemValue];
-            });
-
-            var name;
-            if (value.method[0].methodDescription.length > 0) name = siteParamCombo.sourceInfo.siteName + ' | ' + $('<div>').html(siteParamCombo.variable.variableName).text() + ' | ' + value.method[0].methodDescription;
-            else name = siteParamCombo.sourceInfo.siteName + ' | ' + $('<div>').html(siteParamCombo.variable.variableName).text();
-      
-            var series = {
-              showInLegend: true,
-              values: value,
-              data: valueArray,
-              color: getRandomColor(),
-              siteID: siteParamCombo.sourceInfo.siteCode[0].value,
-              siteName: siteParamCombo.sourceInfo.siteName,
-              siteCode: siteParamCombo.name,
-              variableDescription: siteParamCombo.variable.variableDescription,
-              variableName: siteParamCombo.variable.variableName,
-              unit: siteParamCombo.variable.unit.unitCode,
-              name:name,
-            };
-  
-            //update the name to include the year if compare years is on
-            if (compareYears) {
-              series.name = data.value.queryInfo.note[1].value.split('INTERVAL[')[1].split('-')[0] + ' | ' + siteParamCombo.sourceInfo.siteName + ' | ' + $('<div>').html(siteParamCombo.variable.variableName).text(); 
-            }
-      
-            seriesData.push(series);
-          });
-        });
-
-        //console.log('seriesData:',JSON.stringify(seriesData));
-
-        //check if were done
-        if (counter === requestDatas.length) {
-          showGraph(startTime,seriesData);
+          
+        else if (data.value.length === 0) {
+          alert('Found a site [' + siteIDs + '] but it is missing local DB data for [' +  localList + ']');
+          $('#graph-loading').hide();
+          return;
         }
 
+        //create simulated USGS waterservices response from legacy DB data
+        if (data.declaredType === "localDB") {
+            //console.log('processing local DB data',data.values);
+
+            startTime = data.queryInfo.criteria.timeParam.beginDateTime; 
+
+            var localParams = ["ADCP_X_Velocity", "ADCP_Y_Velocity", "ADCP_Z_Velocity", "ADCP_Echo_Intensity"];
+
+            var resultData = {
+                'ADCP_Echo_Intensity': [],
+                'ADCP_X_Velocity': [],
+                'ADCP_Y_Velocity': [],
+                'ADCP_Z_Velocity': []
+            }
+
+            //find out what local params we need
+            var paramCodeList = data.queryInfo.criteria.variableParam.split(',');
+            var localParamList = localParams.filter(element => paramCodeList.includes(element));
+
+            //sort if necessary
+            //data.values.sort((a,b) => (a['TIMESTAMP'] > b['TIMESTAMP']) ? 1 : ((b['TIMESTAMP'] > a['TIMESTAMP']) ? -1 : 0));
+
+            //loop over datas, add to appropriate timeSeries
+            $(data.value).each(function (i, row) {
+
+                var seconds = moment(row['TIMESTAMP']).valueOf();
+
+                //assumption that there are 30 values for echo and velocity
+                for (i = 1; i < 31; i++) {
+
+                    var echoMean = (parseInt(row['Echo1(' + String(i) + ')']) + parseInt(row['Echo2(' + String(i) + ')']) + parseInt(row['Echo3(' + String(i) + ')']))/3;
+                    resultData.ADCP_Echo_Intensity.push([seconds,i,echoMean]);
+                    
+
+                    var velocityX = parseInt(row['Velocity1(' + String(i) + ')']);
+                    var velocityY = parseInt(row['Velocity2(' + String(i) + ')']);
+                    var velocityZ = parseInt(row['Velocity3(' + String(i) + ')']);
+
+                    //check for bad values
+                    var knownBadValueArray = [-7999,7999];
+                    if (knownBadValueArray.indexOf(velocityX) === -1) resultData.ADCP_X_Velocity.push([seconds,i,velocityX]);
+                    if (knownBadValueArray.indexOf(velocityY) === -1) resultData.ADCP_Y_Velocity.push([seconds,i,velocityY]);
+                    if (knownBadValueArray.indexOf(velocityZ) === -1) resultData.ADCP_Z_Velocity.push([seconds,i,velocityZ]);
+
+                }
+
+                //console.log('row:',seconds,  echoMean, velocityX, velocityY, velocityZ)
+
+            });
+
+            var chartSetup = {
+
+                chart: {
+                    type: 'heatmap',
+                    margin: [60, 10, 80, 50]
+                },
+
+                boost: {
+                    useGPUTranslations: true
+                },
+
+                title: {
+                    text: '',
+                    align: 'left',
+                    x: 40
+                },
+                credits: {
+                  enabled: false
+                },
+                xAxis: {
+                    type: 'datetime',
+                    // min: Date.UTC(2017, 0, 1),
+                    // max: Date.UTC(2017, 11, 31, 23, 59, 59),
+                    labels: {
+                        align: 'left',
+                        x: 5,
+                        y: 14,
+                        format: '{value:%m/%d/%Y}' // long month
+                    },
+                    showLastLabel: false,
+                    tickLength: 16
+                },
+
+                yAxis: {
+                    title: {
+                        text: null
+                    },
+                    labels: {
+                        format: '{value}'
+                    },
+                    // minPadding: 0,
+                    // maxPadding: 0,
+                    // startOnTick: false,
+                    // endOnTick: false,
+                    // tickPositions: [30, 25, 20, 15, 10, 5, 0],
+                    // tickWidth: 1,
+                    // min: 0,
+                    // max: 23,
+                    reversed: true
+                },
+
+                colorAxis: {
+                    stops: [
+                        [0, '#3060cf'],
+                        [0.5, '#fffbbc'],
+                        [0.9, '#c4463a'],
+                        [1, '#c4463a']
+                    ],
+                    // min: -50,
+                    // max: 50,
+                    startOnTick: false,
+                    endOnTick: false,
+                    labels: {
+                        format: '{value}'
+                    }
+                },
+
+                series: [{
+                    boostThreshold: 100,
+                    borderWidth: 0,
+                    nullColor: '#EFEFEF',
+                    colsize: 300000, // 5 mins
+                    tooltip: {
+                        headerFormat: 'Value<br/>',
+                        pointFormat: '{point.x:%A, %b %e, %H:%M} <i>Depth: {point.y}  </i> <b>Value: {point.value}</b>'
+                    },
+                    turboThreshold: Number.MAX_VALUE // #3404, remove after 4.0.5 release
+                }]
+
+            }
+
+            //create charts for each requested localParam
+            $(localParamList).each(function (i, item) {
+
+                console.log('item:', item)
+
+                //only get what we need
+                if (resultData[item].length > 0) {
+
+                    //set fixed scale for color axis for velocity data
+                    if (item.indexOf('Velocity') !== -1) {
+                        chartSetup.colorAxis.min = -50;
+                        chartSetup.colorAxis.max = 50;
+                    }
+
+                    //otherwise let these autoscale
+                    else {
+                        chartSetup.colorAxis.min = null;
+                        chartSetup.colorAxis.max = null;
+                    }
+
+                    //set data specific chart params
+                    chartSetup.title.text = item.replace(/_/g, ' ');
+                    chartSetup.series[0].data = resultData[item];
+
+                    //create chart
+                    showADCPchart(item,chartSetup);
+                    
+
+                }
+            });
+        }
+
+        else {
+          startTime = data.value.queryInfo.criteria.timeParam.beginDateTime;   
+          $(data.value.timeSeries).each(function (i, siteParamCombo) {
+
+            $(siteParamCombo.values).each(function (i, value) {
+  
+              //check to make sure there are some values
+              if (value.value.length === 0) return;
+  
+              var valueArray = value.value.map(function(item) {
+                var seconds = new Date(item.dateTime)/1;
+  
+                //here is where we add a year to each value so compareYears plots can use the same x-axis
+                if (previousYear) seconds = moment(seconds).add(1, 'years').valueOf();
+  
+                var itemValue = item.value/1;
+  
+                //null out the values if there is a maintenance flag
+                if (item.qualifiers.indexOf('Mnt') !== -1 || item.qualifiers.indexOf('Eqp') !== -1) {
+                  itemValue = null;
+                  qualifierFound = true;
+                }
+  
+                return [seconds,itemValue];
+              });
+  
+              var name;
+              if (value.method[0].methodDescription.length > 0) name = siteParamCombo.sourceInfo.siteName + ' | ' + $('<div>').html(siteParamCombo.variable.variableName).text() + ' | ' + value.method[0].methodDescription;
+              else name = siteParamCombo.sourceInfo.siteName + ' | ' + $('<div>').html(siteParamCombo.variable.variableName).text();
+        
+              var series = {
+                showInLegend: true,
+                values: value,
+                data: valueArray,
+                color: getRandomColor(),
+                siteID: siteParamCombo.sourceInfo.siteCode[0].value,
+                siteName: siteParamCombo.sourceInfo.siteName,
+                siteCode: siteParamCombo.name,
+                variableDescription: siteParamCombo.variable.variableDescription,
+                variableName: siteParamCombo.variable.variableName,
+                unit: siteParamCombo.variable.unit.unitCode,
+                name:name,
+              };
+    
+              //update the name to include the year if compare years is on
+              if (compareYears) {
+                series.name = data.value.queryInfo.note[1].value.split('INTERVAL[')[1].split('-')[0] + ' | ' + siteParamCombo.sourceInfo.siteName + ' | ' + $('<div>').html(siteParamCombo.variable.variableName).text(); 
+              }
+        
+              seriesData.push(series);
+            });
+          });
+
+          //console.log('seriesData:',JSON.stringify(seriesData));
+
+          //check if were done
+          if (counter === requestDatas.length) {
+            showGraph(startTime,seriesData);
+          }
+        }
       }
     });
   });
@@ -523,11 +795,32 @@ function getRandomColor() {
   return color;
 }
 
+function showADCPchart(item,chartSetup) {
+
+  console.log('seriesData',item,chartSetup);
+
+  //clear out graphContainer
+  //$('#heatmapContainer').html('');
+  //$('#graphContainer').html('');
+
+  //$('#heatmapContainer').append('<div id="container_' + item + '" style="height: 400px; min-width: 310px; max-width: 800px; margin: 0 auto"></div>');
+  $('#heatmapContainer').append('<div id="container_' + item + '"></div>');
+
+
+  //if there is some data, show the div
+  $('#graphModal').modal('show');
+
+  Highcharts.chart("container_" + item, chartSetup);
+
+  $('#graph-loading').hide();
+}
+
 function showGraph(startTime,seriesData) {
   console.log('seriesData',startTime,seriesData);
 
   //clear out graphContainer
-  $('#graphContainer').html('');
+  //$('#graphContainer').html('');
+  //$('#heatmapContainer').html('');
 
   //if there is some data, show the div
   $('#graphModal').modal('show');
@@ -720,7 +1013,7 @@ function addToLegend(properties) {
     //$('#legend .siteIcon').attr('style', 'margin-top: -6px !important; margin-left: 3px !important');
   }
   else {
-    $("#legend > tbody").append('<tr><td colspan="2"><table class="table table-sm mb-0"><tbody><tr><th colspan="2">No data found in NWIS</th><tr>');
+    $("#legend > tbody").append('<tr class="siteData' + properties['id'] + ' accordian-body collapse"><td colspan="2"><table class="table table-sm mb-0"><tbody><tr><th colspan="2">No data found in NWIS</th><tr>');
   }
 
 }
@@ -802,7 +1095,37 @@ function loadSites() {
                 }
               });
               if (!found) console.log('no data found for:',feature.properties['Site ID'])  
+
+
+              //add non-NWIS params to parameterList
+              if (process.env.NODE_ENV !== 'production') {
+                if (feature.properties["Non-NWIS Parameters"] && feature.properties["Non-NWIS Parameters"].length > 0) {
+
+                  for (var i = 0; i < feature.properties["Non-NWIS Parameters"].length; i++) {
+                    
+                    var param = feature.properties["Non-NWIS Parameters"][i];
+                    var _param = param.replace(/ /g,"_");
+                    console.log('non-nwis parameter found',param);
+  
+                    var parameterObj = {
+                      "idx": String(idx),
+                      "pcode": _param,
+                      "desc": param
+                    };
+      
+                    //push to parameter list if we don't have it yet
+                    if (!parameterList.some(item => item.pcode === param)) {
+                      parameterList.push(parameterObj);
+                      nonNWISparameterList.push(param)
+                      idx+=1;
+                    }
+                  }
+  
+                }
+              }
             });
+
+            //console.log('feats',featureCollection)
             
             var geoJSONlayer = geoJSON(featureCollection, {
               pointToLayer: function (feature, latlng) {
