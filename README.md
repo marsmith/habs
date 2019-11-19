@@ -1,9 +1,9 @@
 # HABS Water Quality Data Viewer
 
-## To convert ADCP CSV data files into database:
+## To convert ADCP .csv data files into database:
 
 ### First export new table creation SQL
-- clean up (delete) extraneous CSV header lines
+- clean up (delete) extraneous .csv header lines
 - connect to CSV with dBeaver flat file connection
 - right click CSV table in dBeaver and choose 'Export Data'
 - select 'Database' as target type and click 'Next' and 'Next' again
