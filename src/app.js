@@ -462,9 +462,12 @@ function getData() {
   });
 
   nwisList = nwisList.join(',');
+  requestData.parameterCd = nwisList;
+  
   localList = localList.join(',');
 
   console.log('paramcodes:',nwisList, localList);
+  console.log('haveLocal:',haveLocal);
 
   if (haveLocal) {
 
@@ -473,13 +476,16 @@ function getData() {
 
       var localRequest = JSON.parse(JSON.stringify(requestData));
 
+      //get correct table based on siteID
       if (site.value === "425606076251601") localRequest.tableName = "SkanPlatform_ADCP";
+      if (site.value === "425327076313601") localRequest.tableName = "Owasco_ADCP";
+      if (site.value === "425027076564401") localRequest.tableName = "Seneca_ADCP";
 
       //passing param code list but dont really need it since were just returning everything in the table that matches date
       localRequest.parameterCd = localList;
       localRequest.source = 'local';
   
-      //for testing
+      //overwrite dates for testing
       localRequest.startDT= '2019-07-22';
       localRequest.endDT= '2019-07-23';
 
@@ -494,11 +500,9 @@ function getData() {
     });
   }
 
-  else {
-    requestData.parameterCd = nwisList;
-    requestDatas.push(requestData);
-  }
- 
+  //push the request
+  requestDatas.push(requestData);
+  console.log('requestDatas:',requestDatas)
 
   //if comparing years, get new dates minus one year
   if (compareYears) {
@@ -776,6 +780,7 @@ function getData() {
           //console.log('seriesData:',JSON.stringify(seriesData));
 
           //check if were done
+          console.log('counter:',counter)
           if (counter === requestDatas.length) {
             showGraph(startTime,seriesData);
           }
@@ -816,7 +821,7 @@ function showADCPchart(item,chartSetup) {
 }
 
 function showGraph(startTime,seriesData) {
-  console.log('seriesData',startTime,seriesData);
+  console.log('showGraph seriesData',startTime,seriesData);
 
   //clear out graphContainer
   //$('#graphContainer').html('');
@@ -1114,7 +1119,7 @@ function loadSites() {
                     };
       
                     //push to parameter list if we don't have it yet
-                    if (!parameterList.some(item => item.pcode === param)) {
+                    if (!parameterList.some(item => item.pcode === _param)) {
                       parameterList.push(parameterObj);
                       nonNWISparameterList.push(param)
                       idx+=1;

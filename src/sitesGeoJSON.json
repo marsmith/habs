@@ -21,6 +21,12 @@
           "webcamURL":"https://cida.usgs.gov/stormsummary/timelapse/BasicData/NYWSC/NY/NY_Seneca_HABs_2_timelapse_videos/idx290_last_frame_in_current_timelapse.jpg",
           "webcamLink":"https://cida.usgs.gov/stormsummary/timelapse/BasicData/NYWSC/NY/NY_Seneca_HABs_2_timelapse_videos/frame_gallery/"
         }
+      ],
+      "Non-NWIS Parameters" : [
+        "ADCP X Velocity",
+        "ADCP Y Velocity",
+        "ADCP Z Velocity",
+        "ADCP Echo Intensity"
       ]
     }
   },
@@ -44,6 +50,12 @@
           "webcamURL":"https://cida.usgs.gov/stormsummary/timelapse/BasicData/NYWSC/NY/NY_Owasco_HABs_2_timelapse_videos/idx292_last_frame_in_current_timelapse.jpg",
           "webcamLink":"https://cida.usgs.gov/stormsummary/timelapse/BasicData/NYWSC/NY/NY_Owasco_HABs_2_timelapse_videos/frame_gallery/"
         }
+      ],
+      "Non-NWIS Parameters" : [
+        "ADCP X Velocity",
+        "ADCP Y Velocity",
+        "ADCP Z Velocity",
+        "ADCP Echo Intensity"
       ]
 
     }
