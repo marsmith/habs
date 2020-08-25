@@ -13,7 +13,7 @@
 
 //CSS imports
 import 'bootstrap/dist/css/bootstrap.css';
-import 'marker-creator/public/css/markers.css';
+import 'marker-creator/app/stylesheets/css/markers.css'
 import 'leaflet/dist/leaflet.css';
 import 'select2/dist/css/select2.css';
 import 'bootstrap-datepicker/dist/css/bootstrap-datepicker.css';
@@ -57,8 +57,8 @@ dom.watch({
 });
 
 //START user config variables
-var MapX = '-76.00'; //set initial map longitude
-var MapY = '42.2'; //set initial map latitude
+var MapX = '-75.5'; //set initial map longitude
+var MapY = '42.8'; //set initial map latitude
 var MapZoom = 7; //set initial map zoom
 var sitesURL = './sitesGeoJSON.json';
 var NWISivURL = 'https://nwis.waterservices.usgs.gov/nwis/iv/';
@@ -72,7 +72,8 @@ var weatherLayer = {};
 var habsSitesLayer;
 var seriesData;
 var parameterList = [];
-var nonNWISparameterList = [];
+var nonNWISparameterList = ['ADCP X Velocity:', 'ADCP Y Velocity:', 'ADCP Z Velocity:',
+'ADCP Echo Intensity:'];
 var habsDBurl;
 process.env.NODE_ENV === 'production' ? habsDBurl = 'https://ny.water.usgs.gov/maps/habs/query.php' : habsDBurl = 'http://localhost:8080/habs/query.php';
 
@@ -252,6 +253,21 @@ $(document).ready(function () {
     });
   });
 
+  //filter sublocations on any change 
+  $('#stationSelect').on('change', function (e) {
+
+    console.log('stationnselect has changed')
+
+    var obj = $("#stationSelect").select2("data");
+    var stationList =  obj.map(subloc => subloc.text);
+
+    console.log('sublocation select selection:',  stationList);
+    console.log('filtering parameterList');
+
+    filterParameterList(stationList);
+
+  });
+
   habsSitesLayer.on('click', function (e) {
     $('#stationSelect').val(null).trigger('change');
     $('#parameterSelect').val(null).trigger('change');
@@ -299,8 +315,73 @@ $.ajaxQueue = function(ajaxOpts) {
   });
 };
 
+function filterParameterList(stationList) {
+
+  //if the list is empty enable all options
+  if (stationList.length === 0) {
+    $("#parameterSelect option").each(function() {
+      $(this).prop('disabled', false);
+    });
+  }
+
+  $.each(stationList, function (idx,siteName) { 
+
+    var pcodeList = [];
+
+    //get available parameters from individual site properties
+    habsSitesLayer.eachLayer(function(geoJSON){
+      geoJSON.eachLayer(function(layer) {
+
+        console.log('feature loop:', siteName, layer.feature.properties['Station Name'])
+
+        if (layer.feature.properties['Station Name'] === siteName) {
+          console.log('FOUND MATCH',layer.feature.properties);
+
+          //get list of parameters available at this sublocation
+          for (var property in layer.feature.properties) {
+            if (property.indexOf(':') !== -1) {
+              var pcode = property.split(':')[0];
+              //console.log('PCODE', pcode);
+              if (pcodeList.indexOf(pcode) === -1) pcodeList.push(pcode);
+
+            }
+          }
+        }
+
+      });
+    });
+
+    console.log('pcode list:', pcodeList);
+
+
+    $("#parameterSelect option").each(function() {
+
+      $(this).prop('disabled', false);
+  
+      //hide options that dont match
+      var optionVal = $(this).val();
+
+      //console.log(optionVal)
+  
+      //if this sublocation doesnt match a selection station, hide it (with disable + CSS)
+      if (pcodeList.indexOf(optionVal) === -1) {
+  
+
+        $(this).prop('disabled', 'disabled');  
+        $('#parameterSelect').trigger('change');
+      }
+  
+      else {
+        //console.log('keeping this sublocation:', optionVal);
+      }
+    });
+  });
+}
+
 function openGraphingModule() {
+  $('#graph-loading').hide();
   $('#graphModal').modal('show');
+
 }
 
 function setDates() {
@@ -453,7 +534,7 @@ function getData() {
   var localList = [];
   var haveLocal = false;
   $(parameterCodeList).each(function(idx, li) {
-      if (li.indexOf('ADCP_') !== -1) {
+      if (li.indexOf('ADCP') !== -1) {
         haveLocal = true;
         localList.push(li);
       }
@@ -501,7 +582,10 @@ function getData() {
   }
 
   //push the request
-  requestDatas.push(requestData);
+  else {
+    requestDatas.push(requestData);
+  }
+
   console.log('requestDatas:',requestDatas)
 
   //if comparing years, get new dates minus one year
@@ -741,8 +825,8 @@ function getData() {
   
                 var itemValue = item.value/1;
   
-                //null out the values if there is a maintenance flag
-                if (item.qualifiers.indexOf('Mnt') !== -1 || item.qualifiers.indexOf('Eqp') !== -1) {
+                //null out the values if there is a maintenance flag or bad values
+                if (item.qualifiers.indexOf('Mnt') !== -1 || item.qualifiers.indexOf('Eqp') !== -1 || itemValue === -999999) {
                   itemValue = null;
                   qualifierFound = true;
                 }
@@ -870,7 +954,11 @@ function showGraph(startTime,seriesData) {
 			}
     },
 		yAxis: [],
-		series: []
+    series: [],
+    legend: {
+      align: 'center',
+      //width: '100%',
+    }
   };
 
 
@@ -946,7 +1034,7 @@ function initializeFilters(featureCollection) {
 
       $.each(parameterList, function (idx,item) {
         selectData.push({
-          "id":item.idx,
+          "id":item.pcode,
           "text":item.pcode + ' | ' + item.desc,
           "value":item.pcode
         });
@@ -985,7 +1073,7 @@ function addToLegend(properties) {
 
   var classString = 'wmm-pin wmm-mutedblue wmm-icon-circle wmm-icon-white wmm-size-25';
 
-  $('#legend > tbody').append('<tr class="site table-expander accordion-toggle" data-toggle="collapse" data-target=".siteData' + properties['id'] + '" data-sitename="' + properties['Station Name'] +'" data-id="' + properties['id'] + '" data-siteid="' + properties['Site ID'] + '"><td><div><icon class="siteIcon ' + classString + '" /></div></td><td><span class="siteName">' + properties['Station Name'] + '</span><span class="ml-2 badge badge-success float-right">Get Data</span></td></tr>');
+  $('#legend > tbody').append('<tr class="site table-expander accordion-toggle" data-toggle="collapse" data-target=".siteData' + properties['id'] + '" data-sitename="' + properties['Station Name'] +'" data-id="' + properties['id'] + '" data-siteid="' + properties['Site ID'] + '"><td><div><icon class="siteIcon ' + properties.classString + '" /></div></td><td><span class="siteName">' + properties['Station Name'] + '</span><span class="ml-2 badge badge-success float-right">Get Data</span></td></tr>');
 
   $('#legend .siteIcon').attr('style', 'margin-top: -6px !important; margin-left: 3px !important');
 
@@ -995,14 +1083,7 @@ function addToLegend(properties) {
     //var n = properties.dateTime;
     var n = d.toLocaleString();
   
-    //add sub-table header
-    //var paramData = '<tr><td colspan="2"><table class="table table-sm mb-0"><tbody><tr data-toggle="collapse" data-target=".siteData' + properties['id'] + '" class="table-expander accordion-toggle"><th data-toggle="collapse" data-target=".multi-collapse' + properties['id'] + '" aria-expanded="false">Most recent values as of: ' + n + '<span class="collapse show multi-collapse' + properties['id'] + ' float-right">[+]</span><span class="collapse multi-collapse' + properties['id'] + ' float-right">[-]</span></th><tr>';
-
-    //var paramData = '<tr class="siteData' + properties['id'] + ' accordian-body collapse"><td colspan="2"><table class="table table-sm mb-0"><tbody><tr><th>Most recent values as of: ' + n + '</th><tr>';
-
     var paramData = '<tr class="siteData' + properties['id'] + ' accordian-body collapse"><td colspan="2"><table class="table table-sm mb-0"><tbody><tr><th colspan="2">Most recent values as of: ' + n + '</th><tr>';
-
-
 
     //add values
     $.each(properties, function (key, value) {
@@ -1103,31 +1184,58 @@ function loadSites() {
 
 
               //add non-NWIS params to parameterList
-              if (process.env.NODE_ENV !== 'production') {
-                if (feature.properties["Non-NWIS Parameters"] && feature.properties["Non-NWIS Parameters"].length > 0) {
+              for (var property in feature.properties) {
+                if (nonNWISparameterList.indexOf(property) !== -1) {
+                  var param = property.split(':')[0];
+                  //var _param = param.replace(/ /g,"_");
 
-                  for (var i = 0; i < feature.properties["Non-NWIS Parameters"].length; i++) {
-                    
-                    var param = feature.properties["Non-NWIS Parameters"][i];
-                    var _param = param.replace(/ /g,"_");
-                    console.log('non-nwis parameter found',param);
-  
-                    var parameterObj = {
-                      "idx": String(idx),
-                      "pcode": _param,
-                      "desc": param
-                    };
-      
-                    //push to parameter list if we don't have it yet
-                    if (!parameterList.some(item => item.pcode === _param)) {
-                      parameterList.push(parameterObj);
-                      nonNWISparameterList.push(param)
-                      idx+=1;
-                    }
+                  console.log('FOUND non NWIS pram', param)
+
+                  var parameterObj = {
+                    "idx": param,
+                    "pcode": param,
+                    "desc": param
+                  };
+
+                  //push to parameter list if we don't have it yet
+                  if (!parameterList.some(item => item.pcode === param)) {
+                    parameterList.push(parameterObj);
+
                   }
-  
+
+
                 }
               }
+
+
+              // if (process.env.NODE_ENV !== 'production') {
+              //   if (feature.properties["Non-NWIS Parameters"] && feature.properties["Non-NWIS Parameters"].length > 0) {
+
+              //     for (var i = 0; i < feature.properties["Non-NWIS Parameters"].length; i++) {
+                    
+              //       var param = feature.properties["Non-NWIS Parameters"][i];
+              //       var _param = param.replace(/ /g,"_");
+              //       console.log('non-nwis parameter found',param);
+
+              //       feature.properties[_param ] = {};
+              //       feature.properties[_param].value = null;
+  
+              //       var parameterObj = {
+              //         "idx": _param,
+              //         "pcode": _param,
+              //         "desc": param
+              //       };
+      
+              //       //push to parameter list if we don't have it yet
+              //       if (!parameterList.some(item => item.pcode === _param)) {
+              //         parameterList.push(parameterObj);
+              //         nonNWISparameterList.push(param)
+              //         idx+=1;
+              //       }
+              //     }
+  
+              //   }
+              // }
             });
 
             //console.log('feats',featureCollection)
@@ -1135,15 +1243,28 @@ function loadSites() {
             var geoJSONlayer = geoJSON(featureCollection, {
               pointToLayer: function (feature, latlng) {
 
-                var classString = 'wmm-pin wmm-mutedblue wmm-icon-circle wmm-icon-white wmm-size-25';
+                //default icon (inactive sites)
+                feature.properties.classString  = 'wmm-pin wmm-mutedblue wmm-icon-circle wmm-icon-white wmm-size-25';
+                feature.properties.status = 'Inactive';
+
+                //check if date datetime is within the last week
+                var check = moment(feature.properties.dateTime).isSame(new Date(), 'week');
+
+                //console.log('abt to add to legend:', feature.properties['Station Name'],check, feature.properties.dateTime)
+
+                //override icon if we have a value within last week
+                if (check) {
+                  feature.properties.classString  = 'wmm-pin wmm-blue wmm-icon-circle wmm-icon-white wmm-size-25';
+                  feature.properties.status = 'Active';
+                }
           
                 addToLegend(feature.properties);
           
-                var icon = L.divIcon({ className: classString });
+                var icon = L.divIcon({ className: feature.properties.classString });
                 return L.marker(latlng, { icon: icon });
               },
               onEachFeature: function(feature, layer) {
-                var popupContent = '<b>Site ID: </b><a href="https://waterdata.usgs.gov/nwis/uv/?site_no=' + feature.properties['Site ID'] + '" target="_blank">' + feature.properties['Site ID'] + '</a><br><b>Station Name:</b> ' + feature.properties['Station Name'];
+                var popupContent = '<b>Site ID: </b><a href="https://waterdata.usgs.gov/nwis/uv/?site_no=' + feature.properties['Site ID'] + '" target="_blank">' + feature.properties['Site ID'] + '</a><br><b>Station Name:</b> ' + feature.properties['Station Name'] + '<br><b>Type:</b> ' + feature.properties.status;
 
                 if (feature.properties['photoURL'] && feature.properties['photoURL'].length > 0) {
                   popupContent += '<br><b>Site photo (static): </b><a href="' + feature.properties['photoURL'] + '" target="_blank">link</a>';

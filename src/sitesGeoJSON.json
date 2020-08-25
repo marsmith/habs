@@ -22,12 +22,11 @@
           "webcamLink":"https://cida.usgs.gov/stormsummary/timelapse/BasicData/NYWSC/NY/NY_Seneca_HABs_2_timelapse_videos/frame_gallery/"
         }
       ],
-      "Non-NWIS Parameters" : [
-        "ADCP X Velocity",
-        "ADCP Y Velocity",
-        "ADCP Z Velocity",
-        "ADCP Echo Intensity"
-      ]
+      "ADCP X Velocity:": {},
+      "ADCP Y Velocity:": {},
+      "ADCP Z Velocity:": {},
+      "ADCP Echo Intensity:": {}
+      
     }
   },
   {
@@ -51,12 +50,10 @@
           "webcamLink":"https://cida.usgs.gov/stormsummary/timelapse/BasicData/NYWSC/NY/NY_Owasco_HABs_2_timelapse_videos/frame_gallery/"
         }
       ],
-      "Non-NWIS Parameters" : [
-        "ADCP X Velocity",
-        "ADCP Y Velocity",
-        "ADCP Z Velocity",
-        "ADCP Echo Intensity"
-      ]
+      "ADCP X Velocity:": {},
+      "ADCP Y Velocity:": {},
+      "ADCP Z Velocity:": {},
+      "ADCP Echo Intensity:": {}
 
     }
   },
@@ -81,12 +78,10 @@
         "webcamLink":"https://cida.usgs.gov/stormsummary/timelapse/BasicData/NYWSC/NY/NY_Skaneateles_HABs_North_timelapse_videos/frame_gallery/"
       }
     ],
-    "Non-NWIS Parameters" : [
-      "ADCP X Velocity",
-      "ADCP Y Velocity",
-      "ADCP Z Velocity",
-      "ADCP Echo Intensity"
-    ]
+    "ADCP X Velocity:": {},
+    "ADCP Y Velocity:": {},
+    "ADCP Z Velocity:": {},
+    "ADCP Echo Intensity:": {}
       
    }
  },
@@ -106,38 +101,6 @@
         "webcamURL":"https://cida.usgs.gov/stormsummary/timelapse/ProjectsRegional/GLRI/NewYork/NY_LAKE1_HABS_timelapse_videos/idx190_last_frame_in_current_timelapse.jpg",
         "webcamLink":"https://cida.usgs.gov/stormsummary/timelapse/ProjectsRegional/GLRI/NewYork/NY_LAKE1_HABS_timelapse_videos/frame_gallery/index.html"
       }
-    ]
-
-  }
- },
- {
-  "type": "Feature",
-  "geometry": {
-     "type": "Point",
-     "coordinates":  [ -74.6397405,40.9362138 ]
-  },
-  "properties": {
-    "id":"5",
-    "Station Name":"LAKE HOPATCONG BUOY",
-    "Site ID":"405610074382301",
-    "photoURL":"",
-    "webcams" : [
-    ]
-
-  }
- },
- {
-  "type": "Feature",
-  "geometry": {
-     "type": "Point",
-     "coordinates":  [ -74.9312,40.6499 ]
-  },
-  "properties": {
-    "id":"6",
-    "Station Name":"SPRUCE RUN RESERVOIR BUOY",
-    "Site ID":"403859074555201",
-    "photoURL":"",
-    "webcams" : [
     ]
 
   }
